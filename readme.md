@@ -8,6 +8,7 @@ The Smart Marketing Assistant is an innovative project that leverages AI agents 
 ## Features
 - **Automated Content Creation**: Generate engaging posts and stories using AI-powered content creation tools.
 - **Hashtag Optimization**: Analyze and suggest the most effective hashtags to reach a wider audience.
+- **X Trend Research**: Search recent public X posts for competitor mentions, hashtags, and campaign signals.
 - **Post Scheduling**: Automatically schedule posts at optimal times for maximum engagement.
 - **Performance Analytics**: Track and analyze the performance of posts and campaigns.
 - **Audience Interaction**: Automate responses to comments and messages to maintain active engagement with followers.
@@ -33,6 +34,8 @@ The Smart Marketing Assistant is an innovative project that leverages AI agents 
      LANGCHAIN_API_KEY=your langchain api key
      OPENAI_API_KEY=your openai api key
      OPENAI_MODEL_NAME=gpt-3.5-turbo-0125
+     EXA_API_KEY=your exa api key
+     XQUIK_API_KEY=your xquik api key
      ```
 
 ## Usage
@@ -52,6 +55,9 @@ The Smart Marketing Assistant is an innovative project that leverages AI agents 
 
 - **AI Models**:
   The project uses pre-trained AI models. You can replace these models with your own by changing llm = your_model in the main.py file.
+
+- **Optional X Search**:
+  If `XQUIK_API_KEY` is set, the CrewAI research agents can call `search_x_posts` to gather recent public X posts for trend, hashtag, and competitor research. Without the key, the tool returns setup guidance and the existing Exa tools continue to work.
 
 ## Project Structure
 - `requirements.txt:` Lists required Python dependencies.
@@ -80,7 +86,7 @@ We welcome contributions to enhance the functionality of the Smart Marketing Ass
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ## Contact
 
