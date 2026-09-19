@@ -1,6 +1,7 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 from instagram.tools.search import SearchTools
+from crewai import LLM
 
 # Uncomment the following line to use an example of a custom tool
 # from instagram.tools.custom_tool import MyCustomTool
@@ -18,8 +19,9 @@ class InstagramCrew():
     def market_researcher(self) -> Agent:
         return Agent(
             config=self.agents_config['market_researcher'],
-            tools = [],
-            verbose=True
+            tools=[],
+            verbose=True,
+            llm = LLM(model="anthropic/claude-sonnet-4-6")
         )
         
     @agent
@@ -84,6 +86,6 @@ class InstagramCrew():
             agents=self.agents,  # Automatically created by the @agent decorator
             tasks=self.tasks,  # Automatically created by the @task decorator
             process=Process.sequential,
-            verbose=2,
+            verbose=True,
             # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
         )
