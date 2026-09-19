@@ -1,0 +1,7 @@
+{
+  "section_id": "council",
+  "title": "Agent Council",
+  "markdown": "**What it is:** The configuration hub for the specialists behind the Executive — the place to tune how each one thinks and how the Executive sounds.\n\n**What it does:**\n\n- Pick any agent and override its system prompt, model, or deep-reasoning toggle.\n- Set the Executive's **voice persona** — the tone it speaks to you in.\n- Test a draft configuration with a one-off query before committing.\n- View version history and roll back, or reset an agent to its built-in default.\n\n*Note: changes take effect on the next call — no restart needed. This is a power-user surface under Settings.*",
+  "mermaid": null,
+  "generated_at": "2026-06-06T00:00:00+00:00"
+}

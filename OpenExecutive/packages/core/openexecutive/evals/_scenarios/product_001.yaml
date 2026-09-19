@@ -1,0 +1,19 @@
+id: product_001
+domain: product
+description: "Roadmap prioritization - feature vs. platform investment"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  arr: 4000000
+  headcount: 45
+query: "I'm being pulled in two directions: customers want 15 different features that would win specific deals, but my engineers say we need to refactor our core infrastructure or we'll have scaling problems in 12 months. We have an 8-person engineering team. How do I prioritize?"
+expected_topics:
+  - technical_debt_tradeoff
+  - customer_driven_vs_platform
+  - prioritization_framework
+  - sequencing
+required_routing:
+  - cpo
+quality_criteria:
+  gives_recommendation: true
+  addresses_tradeoff: true

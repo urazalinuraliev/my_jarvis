@@ -1,0 +1,27 @@
+id: department_goal_update_002
+domain: departments
+description: "User reports a deal loss; Executive should flip the sales goal status to at_risk or off_track."
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 45
+  arr: 3500000
+# Setback case for Phase B's chat-driven goal mutation. User reports
+# concrete bad news on a tracked Goal — Executive should:
+# (1) list_department_goals to find the relevant Goal,
+# (2) update_department_goal with status="at_risk" or "off_track" and
+#     a rationale that cites the user's message,
+# (3) briefly acknowledge + optionally suggest next steps (without
+#     re-asking the user to confirm the update).
+query: "Bad news on Marketing — we just lost the Acme renewal. It was the anchor for our Q2 ARR goal."
+expected_tool_calls:
+  - list_department_goals
+  - update_department_goal
+expected_topics:
+  - acknowledges_setback
+  - records_status_change
+quality_criteria:
+  acknowledges_user_directly: true
+  does_not_redirect_to_ui: true
+  records_setback_not_just_advice: true
+  brief: true

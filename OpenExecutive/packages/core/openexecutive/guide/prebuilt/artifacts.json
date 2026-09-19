@@ -1,0 +1,7 @@
+{
+  "section_id": "artifacts",
+  "title": "Artifacts",
+  "markdown": "**What it is:** Your library of finished documents — both drafted memos and the Markdown outputs of workflow runs — in one searchable place.\n\n**What it does:**\n\n- See all active artifacts, filtered by kind (drafts vs workflow outputs) or by source.\n- Archive an artifact to tuck it away (with a quick undo) and restore it later.\n- Permanently delete one when you're sure, with a confirmation step.\n- Switch between **Active** and **Archived** views.\n\n*Note: archiving is a soft-delete — nothing is lost until you explicitly delete it.*",
+  "mermaid": null,
+  "generated_at": "2026-06-06T00:00:00+00:00"
+}

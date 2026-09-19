@@ -1,0 +1,7 @@
+{
+  "section_id": "simulator",
+  "title": "Company Simulator",
+  "markdown": "**What it is:** A sandbox for loading realistic *test* companies — full profile, org chart, documents, and memory — so you can see the Executive in action before trusting it with real data.\n\n**What it does:**\n\n- Browse and load pre-built company fixtures; your real data is snapshotted first.\n- Generate a brand-new scenario with AI from a short description.\n- Review and edit a generated company before saving it.\n- Unload to restore your snapshot, or reset everything to factory defaults.\n\n*Note: loading a fixture replaces your live context — but your original state is saved and restorable.*",
+  "mermaid": null,
+  "generated_at": "2026-06-06T00:00:00+00:00"
+}

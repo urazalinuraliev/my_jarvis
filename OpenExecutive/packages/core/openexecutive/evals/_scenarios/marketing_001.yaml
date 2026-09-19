@@ -1,0 +1,20 @@
+id: marketing_001
+domain: marketing
+description: "Product launch GTM strategy"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  arr: 5000000
+  headcount: 50
+query: "We're launching a new product tier next quarter that targets enterprise customers (500+ employees) for the first time. We currently sell only to SMBs. What should our go-to-market strategy be?"
+expected_topics:
+  - enterprise_gtm
+  - channel_strategy
+  - sales_motion_change
+  - positioning
+required_routing:
+  - cmo
+  - cso
+quality_criteria:
+  actionable: true
+  addresses_motion_change: true

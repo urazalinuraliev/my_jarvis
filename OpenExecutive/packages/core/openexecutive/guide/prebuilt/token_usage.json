@@ -1,0 +1,7 @@
+{
+  "section_id": "token_usage",
+  "title": "Token Usage",
+  "markdown": "**What it is:** Cost and token accounting — a breakdown of where your AI spend is going.\n\n**What it does:**\n\n- Show total tokens and cost over all time or a date range.\n- Break usage down by day and by model.\n- Compare fresh input vs cached tokens, so you can see caching paying off.\n- Drill into a single session's cost, turn by turn.\n\n*Note: cached reads cost far less than fresh input — the system is built around caching to keep spend down. Lives under the Audit area in Settings.*",
+  "mermaid": null,
+  "generated_at": "2026-06-06T00:00:00+00:00"
+}

@@ -1,0 +1,41 @@
+# Fly app config — Open Executive UI, QA environment (Next.js, standalone output)
+#
+# Stable twin of fly.ui.toml. Only the app name and the backend URL differ:
+# this UI points at the QA API, not dev. Promoted via the `qa` branch.
+#
+# Stateless; safe to auto-stop and scale horizontally if ever needed.
+# Provision once:
+#   flyctl apps create openexec-ui-qa
+#   flyctl secrets set -a openexec-ui-qa AUTH_SECRET=... AUTH_GOOGLE_ID=... \
+#     AUTH_GOOGLE_SECRET=... ALLOWED_EMAILS=... AUTH_TRUST_HOST=true \
+#     AUTH_URL=https://openexec-ui-qa.fly.dev BACKEND_SHARED_SECRET=<same as API>
+
+app = "openexec-ui-qa"
+primary_region = "iad"
+
+[build]
+  dockerfile = "docker/Dockerfile.ui"
+
+[env]
+  # The UI proxies all backend traffic through its server-side route at
+  # /api/backend/[...path], which reads BACKEND_BASE_URL at request time.
+  # We use the public Fly URL rather than `.flycast` (private IPv6 anycast)
+  # because Node's fetch on alpine has flaky AAAA-record resolution that
+  # surfaces as opaque 500s from the proxy. The public route adds a small
+  # latency hop but is reliable. Switch to flycast if you confirm IPv6
+  # resolution works in your build.
+  BACKEND_BASE_URL = "https://openexec-api-qa.fly.dev"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512

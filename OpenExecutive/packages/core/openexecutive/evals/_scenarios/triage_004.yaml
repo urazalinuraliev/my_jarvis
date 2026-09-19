@@ -1,0 +1,30 @@
+id: triage_004
+domain: triage
+description: "Dedup — same churn threat already in recent_alerts, should suppress"
+event:
+  source: email
+  external_id: msg-churn-followup-1
+  subject: "Re: Cancelling our subscription"
+  from: "vp-eng@bigcustomer.com"
+  body: |
+    Just confirming we'll be off your platform by end of month. Please send
+    final invoice. Same as my previous note — outages and lack of support.
+context:
+  recent_alerts:
+    - severity: urgent
+      headline: "Top customer cancelling — $480k ARR loss"
+      dedup_key: "churn-bigcustomer-com"
+      topic_tags: [customer, churn]
+  muted_topics: []
+  active_initiatives:
+    - title: "Reduce churn"
+      status: "active"
+      summary: "Lower 6-month churn rate to <2%"
+expected_decision:
+  alert: false
+  severity: low
+  channels_must_include: [persisted]
+  channels_must_exclude: [web, slack_dm, email]
+  reason_if_suppressed_must_contain: duplicate
+quality_criteria:
+  dedup_key_should_match_recent: churn-bigcustomer-com

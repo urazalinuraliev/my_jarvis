@@ -1,0 +1,117 @@
+# Honcho server config baked into the Open Executive Docker image.
+#
+# Env vars override every key in this file (e.g. `DB_CONNECTION_URI=...`
+# wins over `[db].CONNECTION_URI`), so secrets and per-environment values
+# come from Fly secrets at runtime — see docs/honcho-hosting.md.
+#
+# Provider strategy:
+#   - All LLM calls (deriver, summary, dialectic levels, dream deduction)
+#     use Honcho's `openai` transport but point at OpenRouter. OpenRouter
+#     fronts Anthropic / OpenAI / Voyage / etc., so a single Fly secret
+#     (`LLM_OPENAI_API_KEY` = OE's existing OpenRouter key) drives every
+#     outbound LLM call. The `model` field uses OpenRouter slugs
+#     (`anthropic/claude-haiku-4.5`, etc.).
+#   - Embeddings come from a local fastembed sidecar (see
+#     docker/honcho/embed_server.py) — no external embedding vendor.
+#     Quality ladder + the OpenRouter fallback are documented in
+#     docs/honcho-hosting.md ("Embedding quality ladder").
+
+[app]
+LOG_LEVEL = "INFO"
+# Embeddings ON. Honcho uses them for the dialectic chat's internal
+# retrieval and the deriver's similarity-based fact dedup. Without them
+# the knowledge-graph synthesis quality degrades meaningfully — links
+# between related facts across sessions/peers stop being made.
+EMBED_MESSAGES = true
+
+[db]
+# CONNECTION_URI is set per-environment via the DB_CONNECTION_URI Fly
+# secret (Fly Postgres attach injects DATABASE_URL; the runbook covers
+# the postgres:// → postgresql+psycopg:// scheme rewrite). Pool sizing
+# tuned for the 1-vCPU shared dev VM.
+POOL_SIZE = 10
+
+[auth]
+# Auth-in-depth: even on Fly's private 6PN network the API requires a
+# valid JWT. JWT_SECRET comes from a Fly secret; OE's HONCHO_API_KEY is
+# a token derived from it via src.security.create_admin_jwt().
+USE_AUTH = true
+
+# -------------------------------------------------------------------- #
+# LLM routing — everything via OpenRouter using the openai transport.
+# Cheap-tier work (deriver, summary, low-tier dialectic) → Haiku for
+# cost; medium+ dialectic and dream deduction → Sonnet for quality.
+# -------------------------------------------------------------------- #
+
+[deriver.model_config]
+transport = "openai"
+model     = "anthropic/claude-haiku-4.5"
+base_url  = "https://openrouter.ai/api/v1"
+
+[summary.model_config]
+transport = "openai"
+model     = "anthropic/claude-haiku-4.5"
+base_url  = "https://openrouter.ai/api/v1"
+
+[dialectic.levels.minimal.model_config]
+transport = "openai"
+model     = "anthropic/claude-haiku-4.5"
+base_url  = "https://openrouter.ai/api/v1"
+
+[dialectic.levels.low.model_config]
+transport = "openai"
+model     = "anthropic/claude-haiku-4.5"
+base_url  = "https://openrouter.ai/api/v1"
+
+[dialectic.levels.medium.model_config]
+transport = "openai"
+model     = "anthropic/claude-sonnet-4.6"
+base_url  = "https://openrouter.ai/api/v1"
+
+[dialectic.levels.high.model_config]
+transport = "openai"
+model     = "anthropic/claude-sonnet-4.6"
+base_url  = "https://openrouter.ai/api/v1"
+
+[dialectic.levels.max.model_config]
+transport = "openai"
+model     = "anthropic/claude-sonnet-4.6"
+base_url  = "https://openrouter.ai/api/v1"
+
+[dream]
+# Dreaming ON. This is Honcho's offline reflection pass — it synthesizes
+# higher-order patterns from accumulated peer data (e.g. "Alice is
+# consistently anxious about cash flow", "the team disagrees on hiring
+# velocity"). Without dreaming, peer cards are reactive snapshots; the
+# knowledge-graph value largely lives in this layer. Cost: continuous
+# background LLM spend on OpenRouter — see the runbook's cost-monitoring
+# section before going to prod.
+ENABLED = true
+
+[dream.deduction.model_config]
+transport = "openai"
+model     = "anthropic/claude-sonnet-4.6"
+base_url  = "https://openrouter.ai/api/v1"
+
+# -------------------------------------------------------------------- #
+# Embeddings — local fastembed sidecar (embed_server.py running as the
+# `embed` Fly process group). The deriver hits it over Fly's internal
+# 6PN at `embed.process.<app>.internal:8001/v1`. The base_url is set
+# via the EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL secret (Honcho's
+# nested-pydantic-settings convention — env_prefix=EMBEDDING_,
+# env_nested_delimiter=__), so the deploy can swap to OpenRouter
+# without rebuilding the image. See docs/honcho-hosting.md.
+#
+# IMPORTANT: bge-small-en-v1.5 emits 384-dim vectors but Honcho's
+# schema defaults to Vector(1536). The runbook step "Configure vector
+# dimensions" runs `scripts/configure_embeddings.py` to ALTER the
+# column once per deploy that changes the embedding dim. The Fly
+# release_command in fly.honcho.toml runs it on every deploy
+# (idempotent — no-ops when current dim matches).
+# -------------------------------------------------------------------- #
+[embedding.model_config]
+transport = "openai"
+model     = "BAAI/bge-small-en-v1.5"
+# overrides.base_url + overrides.api_key intentionally omitted —
+# set via EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL and
+# EMBEDDING_MODEL_CONFIG__OVERRIDES__API_KEY Fly secrets.

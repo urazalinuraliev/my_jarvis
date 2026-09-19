@@ -1,0 +1,25 @@
+id: halcyon_001
+domain: strategy
+description: "Proactive external scan: principal asks what the team should be watching this week across competitors, policy, and supply chain"
+company_context:
+  stage: Series C
+  industry: Electric Vehicles / Automotive
+  headcount: 480
+  arr: 140000000
+  monthly_burn: 18000000
+  runway_months: 14
+query: "It's Monday — what should we be looking into this week? Scan our competitors and the policy and supply-chain landscape, and tell me what's worth a decision. Be specific about who and what, not generic."
+expected_topics:
+  - competitive_monitoring
+  - ev_tax_credit
+  - battery_supply_chain
+  - pricing_strategy
+required_routing:
+  - cso
+  - cfo
+  - coo
+  - gc
+quality_criteria:
+  actionable: true
+  specific: true
+  names_real_entities: true

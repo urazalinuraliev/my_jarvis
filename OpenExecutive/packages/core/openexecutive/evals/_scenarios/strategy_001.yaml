@@ -1,0 +1,20 @@
+id: strategy_001
+domain: strategy
+description: "Competitive threat from well-funded competitor entering the market"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 45
+  arr: 3500000
+query: "A well-funded competitor just announced they're entering our market with a product that covers 80% of our feature set at half the price. We have 3x their customer count right now. What should we do?"
+expected_topics:
+  - competitive_differentiation
+  - customer_retention
+  - strategic_response
+  - pricing_strategy
+required_routing:
+  - cso
+quality_criteria:
+  actionable: true
+  specific: true
+  not_generic: true

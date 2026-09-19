@@ -1,0 +1,245 @@
+"""Shared Executive-voice briefing narrative.
+
+One synthesizer (`synthesize_briefing_narrative`), two consumers with two
+prompts:
+  - the **on-page /today header** (`api/routes/today.py`) — a SYNTHESIS that
+    does not re-list the cards rendered below it (per-viewer; served from
+    `narrative_cache`, regenerated off the request hot path), and
+  - the **standalone morning-brief DM** (`workflows/morning_brief.py`,
+    `standalone=True`) — an enumerated brief, since the DM has no cards beside
+    it.
+
+(The EoD digest has its own separate prompt and does not route through here.)
+Sharing the provider call + context rendering keeps both surfaces in the
+Executive's voice while letting each use the right structure.
+"""
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# Cap how many open searches the narrative lists before it stops enumerating —
+# the header is a synthesis, not an exhaustive roster (the cards carry the rest).
+_TALENT_NARRATIVE_CAP = 8
+
+# Standalone morning-brief DM prompt. Unlike the /today header, this is
+# delivered as a DM with NO cards beside it — so it MUST enumerate what needs
+# the principal's attention (it's the only thing they see). Whole-company,
+# principal audience. Used when `standalone=True`. (The EoD digest has its own
+# separate prompt and does not route through here.)
+STANDALONE_BRIEF_SYSTEM = (
+    "You are the user's Executive. You are writing the daily brief — a short "
+    "message the principal reads on its own (delivered as a DM; there is no "
+    "other list beside it, so this message must stand alone). Write "
+    "peer-to-peer, not as a corporate broadcast.\n\n"
+    "Output ≤200 words of Markdown with these sections, in this order, each "
+    "only included when there is real content for it:\n"
+    "  1. **What changed** — anything you acted on, anyone you DM'd, any goal "
+    "that flipped. One bullet per item, terse.\n"
+    "  2. **Needs you** — proposals or decisions waiting on the principal. "
+    "Lead with the most time-sensitive.\n"
+    "  3. **At risk** — departments / goals trending off-track the principal "
+    "hasn't already been briefed on.\n"
+    "  4. **Top call** — the single decision you'd recommend the principal "
+    "focus on, with your suggested move.\n\n"
+    "Skip headers entirely for sections with no content. If everything is "
+    "genuinely quiet, output one line: 'Quiet right now — nothing pressing.'"
+)
+
+
+# Synthesis system prompt for the /today header. The actionable items render as
+# cards BELOW this header, so the narrative must NOT re-list them — it adds the
+# connective tissue a list can't: how items relate, what's most urgent and why,
+# and the single recommended focus. It's the first thing the principal sees, so
+# it's structured for scanning: bottom-line → read bullets → move.
+BRIEFING_NARRATIVE_SYSTEM = (
+    "You are the user's Executive. You are writing the 'What's going on' "
+    "header the principal reads first — a brief, scannable SYNTHESIS of the "
+    "company right now. The actionable items (proposals, in-flight work, "
+    "at-risk departments) render as cards BELOW this header, so do NOT re-list "
+    "them — synthesize.\n\n"
+    "Output ≤120 words of Markdown in this shape:\n"
+    "1. A bold one-line bottom-line opener — the single most important read, as "
+    "ONE plain sentence anyone can grasp at a glance. Vary the actual wording "
+    "day to day; you do NOT have to literally start with the words 'Bottom "
+    "line' (e.g. '**Supply shock's live — your hedges are holding, but six "
+    "teams are stuck on execution.**').\n"
+    "2. 2–4 short bullets — the situational read, NOT a to-do list. ONE idea "
+    "per bullet, written as a plain, complete sentence: name the thing, then "
+    "say in plain words why it matters or what it's blocking. Bold the subject "
+    "(e.g. '- **Hormuz closure risk** — about 38% of our crude still ships "
+    "through the strait, so a closure hits our pricing before the "
+    "diversification plan catches up.'). Do NOT stack multiple clauses into one "
+    "bullet and do NOT use '→' shorthand — if a bullet carries two ideas, make "
+    "it two bullets.\n"
+    "3. A final line starting '**Move today:**' — the single action you'd "
+    "recommend, in one plain sentence, and what stays secondary until it's "
+    "cleared.\n\n"
+    "VOICE: write peer-to-peer with energy and a clear point of view — like a "
+    "sharp chief of staff talking to you, not a status report. Vary your "
+    "phrasing and your opening from day to day so it never reads like a fixed "
+    "daily template; a little personality is good. CLARITY comes first, "
+    "though: a smart reader should get every line on the FIRST read — short "
+    "sentences, plain words over jargon, and when a domain term is unavoidable "
+    "state its consequence plainly. Reference specifics by name. If it's "
+    "genuinely quiet, output one line: 'Quiet right now — nothing pressing.'"
+)
+
+
+def _viewer_system_prompt(name: str, role: str) -> str:
+    """System prompt for a NON-principal teammate's personalized synthesis.
+
+    The provided context is already scoped to this person; their actionable
+    items render as cards below, so this is a short, scannable read of what
+    matters for them — not a re-list.
+    """
+    return (
+        f"You are {name}'s Executive. You are writing the 'What's going on' "
+        f"header {name} ({role}) reads first — a brief, scannable SYNTHESIS of "
+        "what's on their plate right now. Their actionable items render as "
+        "cards BELOW this header, so do NOT re-list them — synthesize.\n\n"
+        "Output ≤80 words of Markdown in this shape: (1) a bold one-line "
+        "bottom-line for them, as one plain sentence (vary the wording day to "
+        "day); (2) 1–3 short bullets, ONE idea each, written as a plain "
+        "complete sentence — name it, then say in plain words why it matters "
+        "(the read, not a to-do list; bold each bullet's subject; no '→' "
+        "shorthand and no stacked clauses); (3) a final line starting "
+        "'**Your move:**' with the single next step. VOICE: peer-to-peer with "
+        "energy and a clear point of view, varied day to day — not a status "
+        "report. But clarity first: they should get every line on the first "
+        "read — short sentences, plain words over jargon. Address them directly "
+        "('you'); the context is already scoped to them. If nothing is on their "
+        "plate, output one line: 'Quiet right now — nothing needs you.'"
+    )
+
+
+def render_briefing_context(
+    *,
+    period_label: str,
+    today_data: dict[str, Any],
+    activity: list[dict[str, Any]],
+) -> str:
+    """Pack the structured /today + activity inputs into a single user-turn block."""
+    parts: list[str] = [f"PERIOD: {period_label}\n"]
+
+    depts = today_data.get("departments", [])
+    at_risk = [d for d in depts if d.get("at_risk_count", 0) or d.get("off_track_count", 0)]
+    if at_risk:
+        parts.append("DEPARTMENTS WITH RISK:")
+        for d in at_risk:
+            parts.append(
+                f"- {d['title']}: at_risk={d.get('at_risk_count', 0)} "
+                f"off_track={d.get('off_track_count', 0)} "
+                f"awaiting={d.get('awaiting_count', 0)}"
+            )
+        parts.append("")
+
+    proposals = today_data.get("proposals", [])
+    if proposals:
+        parts.append("PROPOSALS AWAITING DECISION:")
+        for p in proposals[:10]:
+            parts.append(f"- {p.get('headline', '')[:160]}")
+        parts.append("")
+
+    people = today_data.get("people", [])
+    awaiting = [p for p in people if p.get("awaiting_count", 0)]
+    if awaiting:
+        parts.append("PEOPLE WAITING ON YOU:")
+        for p in awaiting:
+            parts.append(
+                f"- {p.get('full_name', '')} ({p.get('role', '')}): "
+                f"{p.get('awaiting_count', 0)} awaiting, "
+                f"SLA {p.get('soonest_sla_at', 'unset')}"
+            )
+        parts.append("")
+
+    talent = today_data.get("talent", [])
+    notable_searches = [
+        t for t in talent
+        if t.get("offers_out", 0) or t.get("stalled_count", 0) or t.get("needs_screening", 0)
+    ]
+    if notable_searches:
+        parts.append("OPEN EXECUTIVE SEARCHES NEEDING ATTENTION:")
+        for t in notable_searches[:_TALENT_NARRATIVE_CAP]:
+            flags = []
+            if t.get("offers_out", 0):
+                flags.append(f"{t['offers_out']} offer(s) out")
+            if t.get("stalled_count", 0):
+                flags.append(f"{t['stalled_count']} stalled")
+            if t.get("needs_screening", 0):
+                flags.append(f"{t['needs_screening']} to screen")
+            role = t.get("role_title", "")
+            dept = t.get("department", "")
+            label = f"{role} ({dept})" if dept else role
+            parts.append(f"- {label}: {', '.join(flags)}")
+        parts.append("")
+
+    if activity:
+        parts.append("OE ACTIVITY SINCE LAST BRIEF (most recent first):")
+        for item in activity[:15]:
+            parts.append(
+                f"- [{item.get('at', '')[:10]}] {item.get('kind', 'action')}: "
+                f"{item.get('summary', '')[:140]}"
+            )
+
+    if len(parts) == 1:
+        # Only the PERIOD line — genuinely quiet day.
+        parts.append("(No org activity, proposals, or at-risk goals this period.)")
+
+    return "\n".join(parts)
+
+
+async def synthesize_briefing_narrative(
+    *,
+    today_data: dict[str, Any],
+    activity: list[dict[str, Any]],
+    period_label: str,
+    viewer: dict[str, str] | None = None,
+    standalone: bool = False,
+) -> str:
+    """Synthesize the briefing narrative. Returns Markdown, or "" when empty.
+
+    Prompt selection:
+      - ``standalone=True`` → the enumerated whole-company DM brief
+        (morning_brief): a self-contained message with no cards beside it, so
+        it lists what needs attention. (`viewer` is ignored.)
+      - else ``viewer`` set → a non-principal teammate's scoped /today header
+        synthesis (caller passes a `today_data` already scoped to them);
+      - else → the whole-company /today header synthesis.
+
+    The /today header variants are a SYNTHESIS (the actionable items render as
+    cards below the header), so they do not re-list the queue. Raises on
+    provider failure so the caller can decide how to surface it (the morning-
+    brief workflow yields an error event; the page regen logs and moves on).
+    """
+    from openexecutive.agents.utility_fast import get_fast_model
+    from openexecutive.providers import get_provider
+
+    if standalone:
+        system = STANDALONE_BRIEF_SYSTEM
+    elif viewer:
+        system = _viewer_system_prompt(viewer["name"], viewer["role"])
+    else:
+        system = BRIEFING_NARRATIVE_SYSTEM
+    user_content = render_briefing_context(
+        period_label=period_label, today_data=today_data, activity=activity
+    )
+    model = get_fast_model()
+    response = await get_provider(model).messages_create(
+        model=model,
+        max_tokens=600,
+        system=system,
+        messages=[{"role": "user", "content": user_content}],
+    )
+    text_blocks = [b for b in response.content if getattr(b, "type", "") == "text"]
+    return text_blocks[0].text.strip() if text_blocks else ""
+
+
+__all__ = [
+    "BRIEFING_NARRATIVE_SYSTEM",
+    "STANDALONE_BRIEF_SYSTEM",
+    "render_briefing_context",
+    "synthesize_briefing_narrative",
+]

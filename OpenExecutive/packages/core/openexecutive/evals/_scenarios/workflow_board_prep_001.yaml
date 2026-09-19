@@ -1,0 +1,53 @@
+id: workflow_board_prep_001
+domain: board
+type: workflow
+description: "Board prep workflow — generate a full board deck for a Series A SaaS company at a healthy quarter"
+workflow: board_prep
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  arr: 6500000
+  headcount: 42
+workflow_inputs:
+  quarter_label: "Q2 2026"
+  meeting_date: "June 18, 2026"
+  headline_metrics: |
+    - ARR: $6.5M (+12% QoQ, ahead of $6.2M plan)
+    - NRR: 118% (vs. 110% plan)
+    - Cash: $14.2M; burn $720k/month; runway 19 months
+    - New ARR: $1.1M; churned ARR: $80k
+    - Pipeline coverage: 3.1x for Q3
+  wins: |
+    - Closed first mid-market deal (Acme Co., $180k ACV)
+    - Hired VP Sales (starts July); pipeline conversion improved 8pp
+    - Shipped V2 of integrations module — 22 customers adopted in first 4 weeks
+  challenges: |
+    - SMB churn jumped from 4% to 6.5% annualized — root cause investigation in flight
+    - Two engineering departures (one senior); backfilling
+    - Marketing-sourced pipeline only 30% (target 50%); demand-gen plan needed
+  deep_dive_topic_1: |
+    Whether to raise Series B in Q3 2026 to fund aggressive mid-market push,
+    or extend runway and raise in Q1 2027 at higher revenue.
+  deep_dive_topic_2: |
+    Should we hire a CMO now, or stay founder-led on marketing for two more
+    quarters and hire a Director of Demand Gen instead?
+  decisions_needed: |
+    - Approve grant of 1.2% stock options for VP Sales hire
+    - Approve renewal of office lease (3-year, $480k/year)
+expected_artifact_sections:
+  - "Executive Summary"
+  - "Business Update"
+  - "Deep Dive 1"
+  - "Deep Dive 2"
+  - "Decisions and Approvals"
+required_routing:
+  - board_comms
+  - cfo
+  - cso
+quality_criteria:
+  has_all_required_sections: true
+  includes_specific_metrics_from_input: true
+  no_fabricated_numbers: true
+  exec_summary_is_concise: true
+  deep_dives_have_options_and_recommendation: true
+  decisions_section_lists_only_requested_items: true

@@ -1,0 +1,29 @@
+id: department_goal_update_003
+domain: departments
+description: "User asks for ADVICE on a goal — Executive must NOT call update_department_goal (no actual progress to record)."
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 45
+  arr: 3500000
+# Negative case for Phase B. The user is asking the Executive's opinion
+# on how to frame / approach a Goal — not reporting any concrete change.
+# A correctly-restrained model should respond with substantive advice
+# and NOT fire `update_department_goal` (which would falsely move the
+# status based on speculation rather than real activity).
+#
+# This is the most error-prone case for an over-eager tool-caller. If
+# the model conflates "we want to hit $1.2M" with "we hit $1.2M", the
+# goal row would be silently corrupted.
+query: "What's the right framing for our Q3 ARR goal — should we aim for $1.2M and risk missing, or $1M and over-deliver?"
+expected_tool_calls: []  # explicitly: no goal-mutation tool should fire
+not_expected_tool_calls:
+  - update_department_goal
+expected_topics:
+  - goal_setting_philosophy
+  - tradeoff_analysis
+  - recommendation
+quality_criteria:
+  gives_substantive_advice: true
+  does_not_call_update_department_goal: true
+  does_not_invent_status_change: true

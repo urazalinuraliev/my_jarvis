@@ -1,0 +1,160 @@
+# Fly app config — Open Executive's self-hosted Honcho memory service.
+#
+# Internal-only: no [http_service] block, no public IP. Reachable from
+# other Fly apps in the same org via:
+#   openexec-honcho-dev.flycast        (load-balanced internal IPv6 — api process)
+#   embed.process.openexec-honcho-dev.internal (per-process group DNS — embed process)
+#   <id>.vm.openexec-honcho-dev.internal  (per-machine 6PN DNS)
+# Set HONCHO_BASE_URL=http://openexec-honcho-dev.flycast:8000 in the
+# openexec-api-dev secrets to point OE's wrapper at this service.
+#
+# Three process groups:
+#   api      — FastAPI on :8000. Handles all client traffic.
+#   deriver  — Background worker that runs Honcho's extraction + dreaming
+#              passes (`src.deriver`). Two workers in dev.
+#   embed    — Local OpenAI-compatible embeddings sidecar on :8001
+#              (docker/honcho/embed_server.py, fastembed +
+#              BAAI/bge-small-en-v1.5). The deriver hits it for
+#              embeddings, keeping that data path inside Fly's network.
+#
+# Provision once (see docs/honcho-hosting.md for the full sequence,
+# including the DATABASE_URL → DB_CONNECTION_URI scheme rewrite):
+#   flyctl apps create openexec-honcho-dev
+#   flyctl postgres create --name openexec-honcho-pg --region iad
+#   flyctl postgres attach openexec-honcho-pg -a openexec-honcho-dev
+#   flyctl secrets set -a openexec-honcho-dev \
+#       LLM_OPENAI_API_KEY="$OPENROUTER_API_KEY" \
+#       AUTH_JWT_SECRET="$(openssl rand -hex 32)" \
+#       EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL="http://embed.process.openexec-honcho-dev.internal:8001/v1" \
+#       EMBEDDING_MODEL_CONFIG__OVERRIDES__API_KEY="local-no-auth-needed" \
+#       EMBEDDING_VECTOR_DIMENSIONS=384 \
+#       DERIVER_WORKERS=2 \
+#       SENTRY_ENABLED=false
+#   flyctl deploy -c fly.honcho.toml
+# NOTE: Honcho's pydantic-settings convention is `env_prefix="EMBEDDING_"`
+# with `env_nested_delimiter="__"`. Plain `EMBEDDING_BASE_URL` is
+# silently IGNORED — the nested form above is the load-bearing name.
+
+app = "openexec-honcho-dev"
+primary_region = "iad"
+
+[build]
+  dockerfile = "docker/honcho/Dockerfile"
+
+# Fly's release_command runs once per deploy in a one-shot machine
+# BEFORE the new app machines become active. We use it for Honcho's DB
+# bootstrap so:
+#   - migrations land before any api/deriver request can hit a stale
+#     schema (no race; no SSH from CI; no chicken-and-egg if the
+#     previous api was crash-looping)
+#   - `configure_embeddings.py --yes` ALTERs the pgvector column dim
+#     to match the configured embedding model (384 for bge-small).
+#     Idempotent: no-ops when current dim matches.
+# Both scripts ship in the Honcho repo and are stable across minor
+# version bumps; if either is renamed in a future Honcho release,
+# update this line in the same PR as the HONCHO_VERSION bump.
+[deploy]
+  release_command = "sh -c 'python scripts/provision_db.py && python scripts/configure_embeddings.py --yes'"
+
+# Three process groups share the same image; Fly's [processes] block
+# picks which CMD each machine runs. The .venv is on PATH so commands
+# don't need an `uv run` prefix.
+#
+# embed binds `::` (IPv6 all-interfaces) — NOT `0.0.0.0`. Fly's
+# `<process>.process.<app>.internal` DNS resolves to 6PN AAAA records
+# only; an IPv4-only listen accepts no connections from the deriver and
+# every embed call times out. `::` on Linux dual-stacks v4+v6 so this
+# also still works from `flyctl proxy 8001:8001 -a ...` for ad-hoc
+# debugging.
+[processes]
+  api     = "fastapi run --host 0.0.0.0 src/main.py"
+  deriver = "python -m src.deriver"
+  embed   = "uvicorn embed_server:app --host :: --port 8001 --workers 1"
+
+# Deliberately NO [http_service] block — that would allocate a public
+# IP and expose the API. Internal callers reach the api process on
+# port 8000 over Fly's 6PN. If you ever run `flyctl ips allocate-v4`
+# or `allocate-v6` for debugging, RELEASE IT before you walk away —
+# the [[services]] blocks below have no TLS handler, so any public IP
+# would expose plaintext :8000 / :8001 to the internet. If you need
+# public access for real, add an `[http_service]` with
+# `force_https = true` AND confirm AUTH_USE_AUTH is still on (config.toml
+# enforces it, but double-check after the change).
+
+# api process — 1.5GB to leave headroom alongside Honcho's tokenisers
+# and dialectic-chat scratch space.
+[[vm]]
+  memory     = "1.5gb"
+  cpu_kind   = "shared"
+  cpus       = 1
+  processes  = ["api"]
+
+# deriver process — 2GB matches upstream Honcho recommendation; the
+# dreaming pass holds more working state than the simple deriver in
+# our previous MVP config. DERIVER_WORKERS=2 set via Fly secret keeps
+# the background queue moving without burning a third deriver machine.
+[[vm]]
+  memory     = "2gb"
+  cpu_kind   = "shared"
+  cpus       = 1
+  processes  = ["deriver"]
+
+# embed process — fastembed loads the BGE-small ONNX model (~130MB) +
+# inference scratch. 1GB is generous; bumps if/when we move up the
+# embedding quality ladder (bge-base ~700MB, bge-large ~1.5GB).
+[[vm]]
+  memory     = "1gb"
+  cpu_kind   = "shared"
+  cpus       = 1
+  processes  = ["embed"]
+
+# api healthcheck — Honcho's /health is unauthenticated and returns
+# {"status":"ok"} (src/main.py).
+[[services]]
+  internal_port = 8000
+  protocol      = "tcp"
+  processes     = ["api"]
+
+  # Fly validation requires every [[services]] to declare at least one
+  # port. We declare port 8000 with NO handlers — no TLS termination,
+  # no public HTTP entrypoint. Combined with no public IP allocation,
+  # this stays a private TCP service reachable only on flycast / 6PN.
+  [[services.ports]]
+    port     = 8000
+    handlers = []
+
+  [[services.http_checks]]
+    interval        = "30s"
+    timeout         = "5s"
+    grace_period    = "20s"
+    method          = "get"
+    path            = "/health"
+    protocol        = "http"
+
+# embed healthcheck — embed_server.py's /health returns
+# {"status":"ok", "model": EMBED_MODEL}.
+[[services]]
+  internal_port = 8001
+  protocol      = "tcp"
+  processes     = ["embed"]
+
+  [[services.ports]]
+    port     = 8001
+    handlers = []
+
+  [[services.http_checks]]
+    interval        = "30s"
+    timeout         = "5s"
+    grace_period    = "30s"  # fastembed model-load can take a moment on cold start
+    method          = "get"
+    path            = "/health"
+    protocol        = "http"
+
+# Honcho exposes Prometheus metrics on the API at /metrics. Keep on
+# the same internal port — no scraping configured yet, but the
+# operator can `flyctl proxy 9091:8000 -a openexec-honcho-dev` for ad-hoc
+# inspection.
+[[metrics]]
+  port      = 8000
+  path      = "/metrics"
+  processes = ["api"]

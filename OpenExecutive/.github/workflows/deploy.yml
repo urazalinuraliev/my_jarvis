@@ -1,0 +1,141 @@
+name: Deploy (dev)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Which app to deploy"
+        required: true
+        default: "both"
+        type: choice
+        options: [both, api, ui, honcho]
+
+# NOTE: This workflow does NOT block on the CI workflow result. Branch
+# protection (`Require status checks to pass before merging` in the repo
+# settings) is what gates merges into main, so by the time this fires the
+# CI checks on the same SHA have already passed. If branch protection is
+# disabled the deploy will run alongside a failing CI — add a
+# `workflow_run` trigger here if that's a concern.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      ui: ${{ steps.filter.outputs.ui }}
+      honcho: ${{ steps.filter.outputs.honcho }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            api:
+              - 'packages/core/**'
+              - 'knowledge/**'
+              # Demo fixtures live at the repo root and are baked into the API
+              # image (docker/Dockerfile COPYs fixtures/). A fixtures-only change
+              # must redeploy the API or the new company won't appear in /fixtures.
+              - 'fixtures/**'
+              - 'docker/Dockerfile'
+              # The Workspace MCP launcher is COPYed into the API image by
+              # docker/Dockerfile, so a launcher-only change must redeploy the
+              # API — otherwise it merges but Deploy API is skipped (the gap that
+              # bit the WORKSPACE_MCP_PORT fix).
+              - 'docker/workspace-mcp-launch.sh'
+              - 'fly.api.toml'
+              - '.github/workflows/deploy.yml'
+            ui:
+              - 'packages/ui/**'
+              - 'docker/Dockerfile.ui'
+              - 'fly.ui.toml'
+              - '.github/workflows/deploy.yml'
+            honcho:
+              - 'docker/honcho/**'
+              - 'fly.honcho.toml'
+              - '.github/workflows/deploy.yml'
+
+  deploy-api:
+    name: Deploy API
+    needs: changes
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'api'))
+      || (github.event_name == 'push' && needs.changes.outputs.api == 'true')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-api
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only --config fly.api.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_API }}
+
+  deploy-ui:
+    name: Deploy UI
+    needs: changes
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'ui'))
+      || (github.event_name == 'push' && needs.changes.outputs.ui == 'true')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-ui
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only --config fly.ui.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_UI }}
+
+  deploy-honcho:
+    name: Deploy Honcho
+    needs: changes
+    # "both" intentionally excludes honcho — Honcho is a memory-layer
+    # dep, not part of the app pair, and we don't want a routine api/ui
+    # push to cycle the deriver mid-thought. Trigger explicitly via
+    # `workflow_dispatch` with target=honcho, or auto-trigger when the
+    # Honcho image / fly config changes.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'honcho')
+      || (github.event_name == 'push' && needs.changes.outputs.honcho == 'true')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-honcho
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # Fail loud if the operator forgot to set FLY_API_TOKEN_HONCHO —
+      # flyctl's own error for a missing token is opaque and easy to
+      # miss in CI logs.
+      - name: Preflight — token present
+        run: |
+          if [ -z "${{ secrets.FLY_API_TOKEN_HONCHO }}" ]; then
+            echo "::error::FLY_API_TOKEN_HONCHO secret not set in repo Actions settings."
+            echo "Generate via: flyctl tokens create deploy -a openexec-honcho-dev"
+            exit 1
+          fi
+      - name: Deploy
+        # Schema migrations + the configure_embeddings step run as Fly's
+        # release_command (see fly.honcho.toml [deploy]). No SSH from CI.
+        run: flyctl deploy --remote-only --config fly.honcho.toml
+        env:
+          # Separate token because Honcho is a separate Fly app; principle
+          # of least authority means a compromised api/ui token can't
+          # touch the memory app and vice versa.
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_HONCHO }}

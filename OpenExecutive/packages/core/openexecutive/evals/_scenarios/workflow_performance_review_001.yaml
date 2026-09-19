@@ -1,0 +1,64 @@
+id: workflow_performance_review_001
+domain: hr
+type: workflow
+description: "Performance review prep workflow — VP Engineering preparing H1 reviews for a small team"
+workflow: performance_review
+company_context:
+  stage: "Series B"
+  industry: "B2B SaaS"
+  arr: 18000000
+  headcount: 130
+workflow_inputs:
+  review_period: "H1 2026"
+  manager_role: "VP Engineering"
+  direct_reports: |
+    Alice Chen, Senior Engineer, 18 months:
+    Owned the auth refactor end-to-end; shipped on the committed date.
+    Mentored two new junior engineers — both ramped faster than typical.
+    Missed the Q1 platform tier commitment by 4 weeks because she didn't
+    flag the scope creep early. Customer-facing on three escalations,
+    handled them with care. Strong evidence of moving from senior to staff
+    behaviors on technical leadership.
+
+    Bob Singh, Engineer (Level 3), 8 months:
+    Closed the integration platform v1 launch; customers specifically quoted
+    his work in NPS feedback. Real technical depth on the data pipeline
+    issues. Communication friction with the PM team — three meetings
+    derailed by defensiveness in Q2. Has not yet shown evidence of working
+    independently across functions.
+
+    Carla Rodriguez, Staff Engineer, 3 years:
+    Led the architecture review for the platform tier and saved us from
+    a costly path. Limited shipping output this period — mostly
+    architecture and review work. Sponsored two interns successfully.
+    Considering whether her impact is now ceiling at staff or whether
+    a Principal stretch makes sense.
+  calibration_rubric: |
+    Execution (delivers committed outcomes on time, manages own scope),
+    Craft (technical depth and quality of work),
+    Leadership (raises the bar for others, owns ambiguous work),
+    Collaboration (works across functions, handles disagreement well),
+    Impact (measurable business outcomes vs. inputs).
+  team_context: |
+    Team grew from 5 to 9 engineers over H1; calibration baseline may have
+    shifted. Two senior engineers departed in March (unrelated reasons).
+    Hiring bar was tightened in February.
+  promotion_candidates: |
+    Alice Chen — staff promotion under consideration.
+    Carla Rodriguez — Principal stretch under consideration.
+expected_artifact_sections:
+  - "Calibration Rubric"
+  - "Per-Report Writeups"
+  - "Team-Level Calibration View"
+  - "Manager Talking Points"
+required_routing:
+  - chro
+quality_criteria:
+  has_all_required_sections: true
+  rubric_has_concrete_behaviors_per_dimension: true
+  writeup_per_named_report: true
+  writeups_use_only_inputs_no_invented_observations: true
+  promotion_section_only_for_named_candidates: true
+  calibration_view_addresses_distribution_and_risks: true
+  talking_points_use_managers_voice: true
+  artifact_includes_manager_owns_final_disclaimer: true

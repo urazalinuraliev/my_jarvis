@@ -1,0 +1,20 @@
+id: product_002
+domain: product
+description: "Build vs buy decision for AI features"
+company_context:
+  stage: "Series B"
+  industry: "B2B SaaS"
+  arr: 18000000
+  headcount: 120
+query: "Customers are asking for AI-powered features in our product. Should we build them ourselves, use an LLM API, or acquire a small AI company? We have 12 engineers but no ML expertise."
+expected_topics:
+  - build_vs_buy_vs_acquire
+  - capability_assessment
+  - timeline_to_market
+  - competitive_implications
+required_routing:
+  - cpo
+  - cso
+quality_criteria:
+  actionable: true
+  addresses_capabilities: true

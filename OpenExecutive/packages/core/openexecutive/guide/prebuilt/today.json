@@ -1,0 +1,7 @@
+{
+  "section_id": "today",
+  "title": "Today / Morning Brief",
+  "markdown": "**What it is:** A single screen of *what needs you right now* — the proactive digest the Executive prepares so you're not the one chasing status.\n\n**What it does:**\n\n- Splits items into **Needs you** (waiting on your call) and **Across the team** (everything else in motion).\n- Shows each department's goal health — on-track, at-risk, or off-track — with the at-risk goals called out.\n- Lists people with open items, their reply counts, SLA status, and whether they're on leave.\n- Surfaces proposals and alerts you can click to open a chat thread with full context.\n\n*Note: proposals are routed to the right person automatically based on who has authority over them.*",
+  "mermaid": null,
+  "generated_at": "2026-06-06T00:00:00+00:00"
+}

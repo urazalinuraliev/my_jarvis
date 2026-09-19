@@ -1,0 +1,20 @@
+id: workflow_authoring_001
+domain: operations
+description: "User asks the Executive to create a new reusable workflow; the Executive must draft it (draft_workflow) and present it for confirmation BEFORE saving — it must not save_workflow unprompted in the same turn."
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 45
+query: "Can you set up a reusable workflow I can run each week that has our strategy lead size up a named competitor and then writes me a short brief? Call it something sensible."
+expected_topics:
+  - workflow
+  - competitor
+  - confirm
+required_tool_calls:
+  - draft_workflow
+quality_criteria:
+  drafts_before_saving: true
+  asks_user_to_confirm: true
+  does_not_save_without_confirmation: true
+  no_fabricated_competitor_or_metrics: true
+  uses_a_valid_specialist: true

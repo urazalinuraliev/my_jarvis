@@ -1,0 +1,218 @@
+departments:
+  - slug: strategy
+    title: Strategy & Customer
+    specialist_key: cso
+    head_person_name: Taylor Brooks
+    authority_level: escalate
+    charter:
+      mission: Own the competitive read, GTM, and board narrative. When a rival
+        moves on price, a regulation shifts the buy decision, or a market signal
+        is material, the principal hears about it the same day.
+      scope:
+        - Competitive monitoring (Tesla, Rivian, Lucid, GM, Ford, Hyundai/Kia)
+        - Pricing strategy relative to the segment and incentives
+        - GTM, market entry, and channel strategy
+        - Board comms and investor narrative
+      out_of_scope:
+        - Plant operations and supply chain
+        - Engineering execution
+        - Day-to-day marketing spend
+    headcount: 9
+    budget_usd: 1800000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Hold C1 price within $2K of the Model Y after any Tesla cut
+        target: <= $2K gap
+        current: $3.1K gap
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Maintain a live competitive teardown refreshed within 48h of any rival price/product move
+        target: 100% within 48h
+        current: baseline
+        status: on_track
+
+  - slug: finance
+    title: Finance
+    specialist_key: cfo
+    head_person_name: Sam Rivera
+    authority_level: propose_only
+    charter:
+      mission: Steward cash and unit economics. Track burn, runway, and the path to
+        gross-margin-positive per vehicle, and surface any spend or financing
+        decision that needs a human before money moves.
+      scope:
+        - Burn, runway, and quarterly forecast
+        - Per-vehicle unit economics and bill-of-materials cost tracking
+        - Vendor spend review and capital planning for the production ramp
+        - Monitoring of competitor financials and the cost of capital (rates)
+      out_of_scope:
+        - Brand and demand generation
+        - Engineering execution
+    headcount: 14
+    budget_usd: 2400000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Improve gross margin per vehicle from -6% toward breakeven
+        target: 0% by Q4
+        current: -6%
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Keep monthly burn under $20M through the ramp
+        target: < $20M
+        current: $18M
+        status: on_track
+
+  - slug: marketing
+    title: Marketing & Brand
+    specialist_key: cmo
+    head_person_name: Morgan Patel
+    authority_level: propose_only
+    charter:
+      mission: Build the affordable-EV brand and the transparent total-cost-of-
+        ownership story. Convert range-anxious, value-driven first-time EV buyers
+        without resorting to luxury-tier positioning.
+      scope:
+        - Brand, positioning, and the TCO-vs-Model-Y narrative
+        - Demand generation and reservation funnel
+        - Competitive messaging response (incentive changes, rival launches)
+        - Channel and creative spend within approved budget
+      out_of_scope:
+        - Pricing decisions (owned by Strategy/Finance)
+        - Product roadmap commitments
+    headcount: 22
+    budget_usd: 9500000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Hold blended customer acquisition cost under $1,400 per reservation
+        target: < $1,400
+        current: $1,650
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Grow qualified reservations 20% QoQ
+        target: +20%
+        current: +11%
+        status: on_track
+
+  - slug: operations
+    title: Operations & Supply Chain
+    specialist_key: coo
+    head_person_name: Chris Donovan
+    authority_level: auto_execute
+    charter:
+      mission: Ramp C1 production and keep the supply chain unblocked. Retire
+        single-source risk on battery cells and hit the 4,000 units/month target
+        without shipping quality or safety debt.
+      scope:
+        - Production ramp and plant throughput
+        - Battery cell and component supply (CATL, Panasonic, LG Energy Solution)
+        - Logistics, inbound parts, and supplier risk monitoring
+        - Quality signals and recall-adjacent operational issues
+      out_of_scope:
+        - Vehicle pricing
+        - Brand and demand generation
+    headcount: 210
+    budget_usd: 42000000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Raise production from 2,600 to 4,000 units/month
+        target: 4,000/mo
+        current: 2,600/mo
+        status: off_track
+      - quarter: Q2 2026
+        key_result: Qualify a second LFP cell source to end single-source CATL exposure
+        target: 2nd source qualified
+        current: sourcing
+        status: at_risk
+
+  - slug: people
+    title: People & Talent
+    specialist_key: chro
+    head_person_name: Morgan Patel
+    authority_level: propose_only
+    charter:
+      mission: Staff the ramp and keep the team intact through a competitive EV
+        talent market. Win the hires that matter without overpaying into a bidding
+        war, and watch for talent moves at rivals.
+      scope:
+        - Hiring plan for the production ramp and engineering
+        - Compensation benchmarking against EV-sector peers
+        - Retention and culture through a high-pressure scale-up
+        - Monitoring of layoffs/hiring freezes/poaching at competitors
+      out_of_scope:
+        - Vehicle engineering decisions
+        - Financial forecasting
+    headcount: 8
+    budget_usd: 1600000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Fill 40 ramp-critical manufacturing and quality roles
+        target: 40 hires
+        current: 17
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Keep regretted attrition under 6% annualized
+        target: < 6%
+        current: 5.2%
+        status: on_track
+
+  - slug: product
+    title: Product & Engineering
+    specialist_key: cpo
+    head_person_name: Jordan Avery
+    authority_level: auto_execute
+    charter:
+      mission: Own the C1 product and the C2 platform decision. Protect the
+        affordable price point on every program trade-off, and keep range honesty
+        and service experience central to the product.
+      scope:
+        - C1 product roadmap, software/OTA, and feature prioritization
+        - C2 sedan platform decision (build vs. defer)
+        - Charging experience (NACS) and service/ownership product
+        - Competitive product teardowns (Model Y, Ioniq 5, Equinox EV)
+      out_of_scope:
+        - Plant operations
+        - Marketing spend
+    headcount: 95
+    budget_usd: 28000000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Ship the OTA range-estimation improvement to the fleet
+        target: 100% fleet
+        current: 60% rollout
+        status: on_track
+      - quarter: Q2 2026
+        key_result: Deliver the C2 platform build-vs-defer recommendation to the board
+        target: 1 decision memo
+        current: drafting
+        status: on_track
+
+  - slug: legal
+    title: Legal & Regulatory
+    specialist_key: gc
+    head_person_name: Taylor Brooks
+    authority_level: escalate
+    charter:
+      mission: Keep Halcyon ahead of the regulatory and policy signals that move the
+        buy decision — EV tax credits, tariffs, and safety/recall exposure — and make
+        sure material legal risk reaches the principal same-day.
+      scope:
+        - IRA Section 30D EV tax-credit eligibility and sourcing rules
+        - Tariff exposure on imported cells/components and Chinese-EV policy
+        - NHTSA safety, recall, and compliance monitoring
+        - Supplier and financing contracts
+      out_of_scope:
+        - Marketing creative
+        - Production scheduling
+    headcount: 6
+    budget_usd: 2100000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Maintain full Section 30D credit eligibility for the C1 through sourcing compliance
+        target: 100% eligible
+        current: at risk on cell sourcing
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Zero open NHTSA compliance findings
+        target: 0
+        current: 0
+        status: on_track

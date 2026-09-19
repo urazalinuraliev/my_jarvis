@@ -1,0 +1,18 @@
+id: operations_002
+domain: operations
+description: "Vendor negotiation for critical infrastructure"
+company_context:
+  stage: "Series B"
+  industry: "B2B SaaS"
+  arr: 15000000
+query: "Our AWS bill is $180k/month and growing 20% per quarter. Our 3-year contract is up for renewal in 60 days. How should I approach the negotiation?"
+expected_topics:
+  - negotiation_leverage
+  - commitment_vs_flexibility
+  - competitive_alternatives
+  - enterprise_discount
+required_routing:
+  - coo
+quality_criteria:
+  actionable: true
+  specific_tactics: true

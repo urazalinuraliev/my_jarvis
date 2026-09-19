@@ -1,0 +1,235 @@
+# Open Educational Resources manifest for the executive knowledge base.
+#
+# Phase 1: CC BY / CC0 / public domain — safe to redistribute embedded chunks.
+# Phase 2: CC BY-SA / CC BY-NC-SA / MIT — safe to ingest; share-alike or
+#          non-commercial restrictions may apply to downstream redistribution.
+#
+# Each source is fetched into knowledge/external/<id>/ (gitignored), text is
+# extracted, chunked, and upserted into the builtin_knowledge ChromaDB
+# collection so the existing retriever picks it up. Re-running is idempotent
+# (deterministic chunk ids upsert in place).
+#
+# Run with:
+#   openexecutive ingest-oer            # both phases
+#   openexecutive ingest-oer --phase 1  # CC BY / public domain only
+#   openexecutive ingest-oer --source openstax-finance --force
+#
+# To add a new source: append an entry with a unique `id`, a verified `url`,
+# the correct `license`, target `domains` (must match knowledge/builtin/*),
+# and `type` (pdf | html | git).
+
+sources:
+  # ---- Phase 1: CC BY 4.0 (OpenStax) ------------------------------------
+  #
+  # OpenStax sources resolve the live high-resolution PDF URL via their CMS
+  # API at fetch time (https://openstax.org/apps/cms/api/v2/pages/...), so
+  # the slug is the stable identifier — asset URLs change as books are
+  # republished. The `url` field below points at the human-facing book page
+  # for documentation only.
+
+  - id: openstax-intro-business
+    title: Introduction to Business
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [strategy, operations, finance, marketing, hr]
+    type: openstax
+    slug: introduction-business
+    url: https://openstax.org/details/books/introduction-business
+
+  - id: openstax-finance
+    title: Principles of Finance
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [finance]
+    type: openstax
+    slug: principles-finance
+    url: https://openstax.org/details/books/principles-finance
+
+  - id: openstax-marketing
+    title: Principles of Marketing
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [marketing]
+    type: openstax
+    slug: principles-marketing
+    url: https://openstax.org/details/books/principles-marketing
+
+  - id: openstax-management
+    title: Principles of Management
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [strategy, operations, hr]
+    type: openstax
+    slug: principles-management
+    url: https://openstax.org/details/books/principles-management
+
+  - id: openstax-org-behavior
+    title: Organizational Behavior
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [hr]
+    type: openstax
+    slug: organizational-behavior
+    url: https://openstax.org/details/books/organizational-behavior
+
+  - id: openstax-business-ethics
+    title: Business Ethics
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [legal, board]
+    type: openstax
+    slug: business-ethics
+    url: https://openstax.org/details/books/business-ethics
+
+  - id: openstax-entrepreneurship
+    title: Entrepreneurship
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [strategy, finance, operations, marketing]
+    type: openstax
+    slug: entrepreneurship
+    url: https://openstax.org/details/books/entrepreneurship
+
+  - id: openstax-accounting-financial
+    title: Principles of Financial Accounting
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [finance]
+    type: openstax
+    slug: principles-financial-accounting
+    url: https://openstax.org/details/books/principles-financial-accounting
+
+  - id: openstax-accounting-managerial
+    title: Principles of Managerial Accounting
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [finance, operations]
+    type: openstax
+    slug: principles-managerial-accounting
+    url: https://openstax.org/details/books/principles-managerial-accounting
+
+  - id: openstax-business-law
+    title: Business Law I Essentials
+    publisher: OpenStax (Rice University)
+    license: CC BY 4.0
+    phase: 1
+    domains: [legal]
+    type: openstax
+    slug: business-law-i-essentials
+    url: https://openstax.org/details/books/business-law-i-essentials
+
+  # ---- Phase 1: CC0 / US public domain ----------------------------------
+
+  - id: nist-csf
+    title: NIST Cybersecurity Framework 2.0
+    publisher: National Institute of Standards and Technology (NIST)
+    license: US Government public domain
+    phase: 1
+    domains: [operations]
+    type: pdf
+    url: https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf
+
+  - id: sec-investor-guides
+    title: SEC Investor Education — Beginners' Guide to Financial Statements
+    publisher: US Securities and Exchange Commission
+    license: US Government public domain
+    phase: 1
+    domains: [finance, board]
+    type: html
+    url: https://www.sec.gov/investor/pubs/begfinstmtguide.htm
+
+  - id: 18f-methods
+    title: 18F Methods (human-centered design playbook)
+    publisher: US General Services Administration (18F)
+    license: CC0 1.0
+    phase: 1
+    domains: [product, operations]
+    type: git
+    url: https://github.com/18F/methods.git
+    include_globs:
+      - "_methods/**/*.md"
+      - "README.md"
+
+  # ---- Phase 2: MIT (GitLab Handbook) -----------------------------------
+  #
+  # The full handbook is large (~hundreds of MB of markdown). We sparse-clone
+  # the high-signal sub-handbooks per specialist domain. Tune include_globs
+  # to expand or narrow the corpus.
+
+  - id: gitlab-handbook
+    title: GitLab Handbook
+    publisher: GitLab Inc.
+    license: MIT
+    phase: 2
+    domains: [operations, hr, finance, marketing, legal, product, strategy]
+    type: git
+    url: https://gitlab.com/gitlab-com/content-sites/handbook.git
+    include_globs:
+      - "content/handbook/people-group/**/*.md"
+      - "content/handbook/finance/**/*.md"
+      - "content/handbook/marketing/**/*.md"
+      - "content/handbook/sales/**/*.md"
+      - "content/handbook/legal/**/*.md"
+      - "content/handbook/product/**/*.md"
+      - "content/handbook/engineering/infrastructure/**/*.md"
+      - "content/handbook/company/**/*.md"
+      - "content/handbook/leadership/**/*.md"
+    # Per-glob domain hints so chunks land in the right specialist's lane.
+    domain_overrides:
+      "content/handbook/people-group/": hr
+      "content/handbook/finance/": finance
+      "content/handbook/marketing/": marketing
+      "content/handbook/sales/": marketing
+      "content/handbook/legal/": legal
+      "content/handbook/product/": product
+      "content/handbook/engineering/": operations
+      "content/handbook/company/": strategy
+      "content/handbook/leadership/": board
+
+  - id: sourcegraph-handbook
+    title: Sourcegraph Handbook
+    publisher: Sourcegraph
+    license: Apache 2.0
+    phase: 2
+    domains: [operations, hr, strategy, product]
+    type: git
+    url: https://github.com/sourcegraph/handbook.git
+    include_globs:
+      - "content/strategy-goals/**/*.md"
+      - "content/departments/people-talent/**/*.md"
+      - "content/departments/product/**/*.md"
+      - "content/departments/engineering/dev/**/*.md"
+      - "content/company-info-and-process/**/*.md"
+    domain_overrides:
+      "content/strategy-goals/": strategy
+      "content/departments/people-talent/": hr
+      "content/departments/product/": product
+      "content/departments/engineering/": operations
+      "content/company-info-and-process/": operations
+
+  - id: posthog-handbook
+    title: PostHog Handbook
+    publisher: PostHog
+    license: MIT
+    phase: 2
+    domains: [product, hr, operations, marketing]
+    type: git
+    url: https://github.com/PostHog/posthog.com.git
+    include_globs:
+      - "contents/handbook/**/*.md"
+      - "contents/handbook/**/*.mdx"
+    domain_overrides:
+      "contents/handbook/growth/": marketing
+      "contents/handbook/people/": hr
+      "contents/handbook/product/": product
+      "contents/handbook/engineering/": operations
+      "contents/handbook/company/": strategy

@@ -1,0 +1,36 @@
+# Fly app config — Open Executive UI (Next.js, standalone output)
+#
+# Stateless; safe to auto-stop and scale horizontally if ever needed.
+# Provision once:
+#   flyctl apps create openexec-ui-dev
+#   (no volume; no secrets needed unless we add a server-only one later)
+
+app = "openexec-ui-dev"
+primary_region = "iad"
+
+[build]
+  dockerfile = "docker/Dockerfile.ui"
+
+[env]
+  # The UI proxies all backend traffic through its server-side route at
+  # /api/backend/[...path], which reads BACKEND_BASE_URL at request time.
+  # We use the public Fly URL rather than `.flycast` (private IPv6 anycast)
+  # because Node's fetch on alpine has flaky AAAA-record resolution that
+  # surfaces as opaque 500s from the proxy. The public route adds a small
+  # latency hop but is reliable. Switch to flycast if you confirm IPv6
+  # resolution works in your build.
+  BACKEND_BASE_URL = "https://openexec-api-dev.fly.dev"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512

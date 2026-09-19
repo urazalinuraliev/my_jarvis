@@ -1,0 +1,26 @@
+id: meridian_001
+domain: strategy
+description: "Proactive external scan: principal asks what the team should be watching this week across the Iran conflict, crude prices, shipping, and sanctions"
+company_context:
+  stage: Private / PE-backed
+  industry: Oil & Gas — Independent Refining, Crude Trading & Fuels Marketing
+  headcount: 1400
+  arr: 3200000000
+  refining_margin_per_bbl: 14.20
+  hormuz_dependent_feedstock_pct: 38
+query: "It's Monday and the Iran situation is moving fast — what should we be watching this week? Scan the conflict, crude prices, the Strait of Hormuz, OPEC+, and sanctions, and tell me what's worth a decision. Be specific about who and what, not generic."
+expected_topics:
+  - iran_conflict_escalation
+  - crude_price_and_margin
+  - strait_of_hormuz_shipping
+  - opec_supply
+  - ofac_iran_sanctions
+required_routing:
+  - cso
+  - cfo
+  - coo
+  - gc
+quality_criteria:
+  actionable: true
+  specific: true
+  names_real_entities: true

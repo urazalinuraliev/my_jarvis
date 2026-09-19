@@ -1,0 +1,23 @@
+id: cross_domain_001
+domain: cross_domain
+description: "Raise vs. profitability with strategic analysis"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  arr: 7000000
+  monthly_burn: 550000
+  runway_months: 18
+  nrr: 112
+query: "We're at $7M ARR, growing 70% YoY, burning $550k/month with 18 months runway. NRR is 112%. Should we raise a Series B in the next 6 months or push toward profitability? We could reach breakeven in 12 months if we froze hiring."
+expected_topics:
+  - financial_scenarios
+  - strategic_implications
+  - market_timing
+  - team_morale_implications
+required_routing:
+  - cfo
+  - cso
+quality_criteria:
+  both_specialists_consulted: true
+  synthesized_recommendation: true
+  addresses_tradeoffs: true

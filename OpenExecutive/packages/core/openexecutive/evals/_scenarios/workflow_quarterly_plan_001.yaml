@@ -1,0 +1,51 @@
+id: workflow_quarterly_plan_001
+domain: strategy
+type: workflow
+description: "Quarterly plan workflow — Series A B2B SaaS coming off a mixed quarter"
+workflow: quarterly_plan
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  arr: 8000000
+  headcount: 55
+workflow_inputs:
+  quarter_label: "Q3 2026"
+  prior_quarter_recap: |
+    - Shipped V2 of integrations module (4 weeks late vs. plan)
+    - Closed first mid-market deal (Acme, $180k ACV) — pipeline validation
+    - SMB churn rose 4% → 6.5% annualized; root cause not yet identified
+    - Hired VP Sales (starts mid-quarter); two senior engineering departures
+    - Marketing-sourced pipeline fell short (30% vs. 50% target)
+  top_strategic_priorities: |
+    - Land 5 mid-market customers ($1.5M+ new ARR from the segment)
+    - Reduce SMB churn back to <4% annualized
+    - Stand up demand-gen engine — get marketing-sourced pipeline to 45%+
+    - Ship the API platform tier (paid add-on, target 30% of new accounts attaching)
+  biggest_bets: |
+    - Mid-market wedge: dedicated AE motion + new ICP playbook
+    - API platform tier launch (3-month engineering bet that opens a new revenue line)
+  known_constraints: |
+    - Engineering headcount flat through Q3 (no backfills for departures until Q4)
+    - Marketing budget capped at $180k/month
+    - Cannot reduce SMB price tier without board approval
+  revenue_target_context: |
+    - Current ARR $8.0M, growing ~6% MoM
+    - Board commitment: $11M ARR by year-end (implies Q3 ending ARR ~$9.5M)
+    - Cash $12M, burn $720k/month, runway 16 months
+expected_artifact_sections:
+  - "Recap From Last Quarter"
+  - "Company OKRs"
+  - "Financial Frame"
+  - "Operating Priorities"
+  - "Risks and Mitigations"
+required_routing:
+  - cso
+  - cfo
+quality_criteria:
+  has_all_required_sections: true
+  okrs_have_3_to_5_objectives: true
+  okrs_have_specific_key_results: true
+  financial_frame_uses_inputs_or_placeholders: true
+  operating_priorities_include_explicit_not_priorities: true
+  risks_have_leading_indicators: true
+  no_fabricated_numbers: true

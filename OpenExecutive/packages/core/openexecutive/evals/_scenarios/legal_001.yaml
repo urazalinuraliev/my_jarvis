@@ -1,0 +1,19 @@
+id: legal_001
+domain: legal
+description: "Customer demands unlimited liability in contract"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  arr: 3000000
+query: "A large enterprise customer wants to sign a $400k annual contract but their legal team is demanding unlimited liability for data breaches and IP indemnification. We have a $5M insurance policy. What should we do?"
+expected_topics:
+  - liability_cap_negotiation
+  - market_standard
+  - risk_assessment
+  - escalation_to_counsel
+required_routing:
+  - gc
+quality_criteria:
+  includes_disclaimer: true
+  actionable: true
+  market_standard_referenced: true

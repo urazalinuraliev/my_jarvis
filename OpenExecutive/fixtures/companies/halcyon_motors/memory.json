@@ -1,0 +1,111 @@
+{
+  "decisions": [
+    {
+      "timestamp": "2026-03-10T15:00:00+00:00",
+      "domain": "product",
+      "summary": "Commit the C1 to a single, option-light trim at a $36,900 starting price rather than a laddered trim lineup.",
+      "rationale": "Affordable is the product. A single trim collapses build complexity, speeds the ramp, and keeps the price below the segment ceiling set by the Chevy Equinox EV and a tariff-gated BYD. Trim sprawl would erode the one advantage we have.",
+      "outcome": "C1 ships as one trim with a short options list. Marketing positions on total cost of ownership vs. the Model Y.",
+      "tags": "product,pricing,strategy"
+    },
+    {
+      "timestamp": "2026-04-02T17:30:00+00:00",
+      "domain": "operations",
+      "summary": "Adopt LFP cell chemistry for the C1 and begin qualifying a second cell source beyond CATL.",
+      "rationale": "LFP wins on cost and cycle life for a value buyer who cares about longevity over peak range. But single-sourcing cells from CATL is both a supply risk and a tariff/policy risk. We need a second qualified source before we ramp to 4,000/month.",
+      "outcome": "LFP locked for C1. Operations opened second-source qualification with Panasonic and LG Energy Solution; still in progress.",
+      "tags": "operations,supply-chain,battery,risk"
+    },
+    {
+      "timestamp": "2026-04-22T16:00:00+00:00",
+      "domain": "product",
+      "summary": "Ship the C1 NACS-native so buyers get Tesla Supercharger access from day one.",
+      "rationale": "Charging access is the top stated anxiety for our first-time-EV target customer. NACS-native removes the adapter friction and lets marketing make a clean Supercharger-access claim against incumbents still transitioning.",
+      "outcome": "C1 ships with a NACS port. Polestar and Ford comparisons used in the charging narrative.",
+      "tags": "product,charging,nacs,marketing"
+    },
+    {
+      "timestamp": "2026-05-12T14:00:00+00:00",
+      "domain": "strategy",
+      "summary": "Hold C1 pricing flat through the next Tesla Model Y price cut rather than reflexively matching it.",
+      "rationale": "Matching every Tesla cut torches the path to gross-margin-positive, which is the north-star metric this year. We compete on total cost of ownership and Supercharger access, not on headline price wars we cannot afford pre-margin.",
+      "outcome": "Pricing held. Strategy to publish a TCO comparison instead of cutting. Flagged for same-day review if a cut is paired with a 30D credit change.",
+      "tags": "strategy,pricing,competition,tesla"
+    }
+  ],
+  "initiatives": [
+    {
+      "title": "C1 production ramp to 4,000 units/month",
+      "status": "active",
+      "created_at": "2026-02-01T00:00:00+00:00",
+      "updated_at": "2026-05-20T00:00:00+00:00",
+      "summary": "Lift line throughput from 2,600 to 4,000 vehicles/month to clear the 31K-unit backlog. Gated on second-source LFP cell qualification and quality holds; owned by Operations (Chris).",
+      "department": "operations"
+    },
+    {
+      "title": "Path to gross-margin-positive per vehicle",
+      "status": "active",
+      "created_at": "2026-02-15T00:00:00+00:00",
+      "updated_at": "2026-05-22T00:00:00+00:00",
+      "summary": "Move gross margin per vehicle from -6% toward breakeven before the next raise — via bill-of-materials cost-downs, ramp-driven fixed-cost absorption, and pricing discipline against Tesla cuts. Owned by Finance (Sam).",
+      "department": "finance"
+    },
+    {
+      "title": "Second-source LFP cell qualification",
+      "status": "active",
+      "created_at": "2026-04-02T00:00:00+00:00",
+      "updated_at": "2026-05-18T00:00:00+00:00",
+      "summary": "Retire single-source CATL exposure by qualifying a second LFP cell supplier (Panasonic / LG Energy Solution). Tied to both supply resilience and IRA Section 30D sourcing eligibility. Owned by Operations with Legal review.",
+      "department": "operations"
+    },
+    {
+      "title": "Affordable-EV TCO marketing narrative",
+      "status": "active",
+      "created_at": "2026-03-01T00:00:00+00:00",
+      "updated_at": "2026-05-21T00:00:00+00:00",
+      "summary": "Publish a transparent total-cost-of-ownership story against the Tesla Model Y and Chevy Equinox EV — including NACS Supercharger access — to convert range-anxious first-time EV buyers without cutting price. Owned by Marketing (Morgan).",
+      "department": "marketing"
+    },
+    {
+      "title": "C2 sedan platform build-vs-defer decision",
+      "status": "active",
+      "created_at": "2026-03-20T00:00:00+00:00",
+      "updated_at": "2026-05-19T00:00:00+00:00",
+      "summary": "Decide whether to greenlight the C2 sedan on the next platform now or defer until C1 hits gross-margin-positive. Board decision memo in progress. Owned by Product (Jordan) with Finance and Strategy input.",
+      "department": "product"
+    },
+    {
+      "title": "Ramp-critical hiring plan",
+      "status": "active",
+      "created_at": "2026-03-05T00:00:00+00:00",
+      "updated_at": "2026-05-15T00:00:00+00:00",
+      "summary": "Fill 40 ramp-critical manufacturing and quality roles in a competitive EV talent market without overpaying into a bidding war. Watch competitor layoffs/hiring freezes for talent availability. Owned by People (Morgan).",
+      "department": "people"
+    }
+  ],
+  "advice_given": [
+    {
+      "timestamp": "-1d",
+      "domain": "strategy",
+      "query_summary": "Should we match the latest Tesla Model Y price cut?",
+      "advice_summary": "Hold C1 pricing and publish a transparent TCO + Supercharger-access comparison instead. Matching every Tesla cut torches the path to gross-margin-positive, which is this year's north-star. Flag for same-day review only if a cut is paired with a 30D credit change.",
+      "department": "strategy"
+    },
+    {
+      "timestamp": "-2d",
+      "domain": "operations",
+      "query_summary": "How urgent is qualifying a second LFP cell source?",
+      "advice_summary": "Treat it as gating for both the 4,000/month ramp and 30D sourcing eligibility. Qualify Panasonic/LG before scaling — single-source CATL is simultaneously a supply risk and a tariff/policy risk.",
+      "department": "operations"
+    }
+  ],
+  "scheduled_actions": [
+    {
+      "run_at": "+30s",
+      "kind": "watchlist_research_scan",
+      "channel": "__internal__",
+      "channel_ref": "watchlist_research",
+      "intent_text": "Starting from a clean baseline: research the landscape across all specialists and propose what we should be watching — add the highest-signal sources to the watchlist. Web-search current moves by Tesla, Rivian, Lucid, BYD, Ford, GM, and Hyundai/Kia; EV tax-credit (IRA 30D) and tariff changes; battery-supplier (CATL, Panasonic, LG Energy Solution) and NHTSA recall signals. Propose watchlist additions for the most decision-relevant signals, and only route something to a department head if it is genuinely urgent."
+    }
+  ]
+}

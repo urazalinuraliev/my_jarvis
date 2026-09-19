@@ -1,0 +1,32 @@
+id: triage_002
+domain: triage
+description: "Marketing newsletter — should not fire an alert"
+event:
+  source: email
+  external_id: msg-newsletter-1
+  subject: "[Newsletter] 7 SaaS Pricing Mistakes Your Competitors Make"
+  from: "growth@randomvendor.io"
+  body: |
+    Hi there!
+
+    We've put together a definitive list of pricing mistakes we see SaaS
+    companies make. Read more on our blog: https://example.com/blog/123
+
+    Want to chat about how we can help your team? Book a 15-min intro call.
+
+    Cheers,
+    Tara at GrowthCo
+context:
+  recent_alerts: []
+  muted_topics: []
+  active_initiatives:
+    - title: "Pricing v2 launch"
+      status: "active"
+      summary: "Roll out tiered pricing in Q3"
+expected_decision:
+  alert: false
+  severity: low
+  channels_must_include: [persisted]
+  channels_must_exclude: [web, slack_dm, email]
+quality_criteria:
+  reason_if_suppressed_required: true

@@ -1,0 +1,33 @@
+id: department_memory_001
+domain: finance
+description: "Department peer recalls a goal's rationale set in an earlier turn"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 45
+  arr: 3500000
+# This scenario exercises the dept-level Honcho integration end-to-end:
+# (1) a goal is set on the Finance dept with explicit rationale,
+# (2) on a later turn, the Executive consults the CFO, which fires
+#     prefetch_department(department_slug="finance"),
+# (3) the dept peer's representation should surface the rationale.
+# Judge whether the response correctly cites the prior rationale.
+multi_turn:
+  - role: user
+    content: "Set Finance's Q3 KR to $1.2M monthly burn. The reason: runway is the binding constraint and we need 18 months at our next raise."
+  - role: assistant
+    content: "(Executive acknowledges, store_decision/insert_goal fires for Finance dept.)"
+  - role: user
+    content: "What's our Q3 Finance target and why did we set it there?"
+query: "What's our Q3 Finance target and why did we set it there?"
+expected_topics:
+  - burn_rate
+  - runway
+  - eighteen_month_horizon
+required_routing:
+  - cfo
+quality_criteria:
+  actionable: true
+  specific: true
+  not_generic: true
+  cites_prior_rationale: true

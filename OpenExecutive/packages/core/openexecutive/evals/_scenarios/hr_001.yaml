@@ -1,0 +1,19 @@
+id: hr_001
+domain: hr
+description: "Managing a poor performer who is well-liked"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 35
+query: "My VP of Sales has been underperforming for 2 quarters. He's at 62% of quota. He's well-liked on the team and has been with us for 2 years. I've had two informal conversations with him about it. What do I do?"
+expected_topics:
+  - performance_management
+  - documentation
+  - pip_or_separation
+  - team_impact
+required_routing:
+  - chro
+quality_criteria:
+  actionable: true
+  addresses_legal_risk: true
+  direct: true

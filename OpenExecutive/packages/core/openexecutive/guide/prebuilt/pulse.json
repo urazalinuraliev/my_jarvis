@@ -1,0 +1,7 @@
+{
+  "section_id": "pulse",
+  "title": "Pulse (Memory)",
+  "markdown": "**What it is:** The Executive's running memory and heartbeat — the decisions it has made with you, the initiatives it's tracking, the advice it has gathered, and the rhythm of work it runs on its own.\n\n**What it does:**\n\n- Browse past **decisions** with their rationale and outcome.\n- Track **initiatives** through planned → in-progress → done.\n- Review **advice** collected from specialists, searchable by topic.\n- See the **heartbeat** — the recurring cadence of daily briefs, department check-ins, system scans, and pending scheduled follow-ups.\n- Edit, update, or delete any item to keep the Executive's memory accurate.\n\n*Note: this memory is searchable across the system, so what's captured here informs future answers.*",
+  "mermaid": null,
+  "generated_at": "2026-06-11T00:00:00+00:00"
+}

@@ -1,0 +1,90 @@
+company:
+  name: Tandem Robotics
+  industry: Humanoid Robotics / Warehouse Automation
+  stage: Series C
+  founding_year: 2020
+  headcount: 420
+  annual_revenue_arr: 90000000
+  mission: Put a reliable general-purpose humanoid on the warehouse floor that a
+    mid-market operator can deploy as a service — no eight-figure capital outlay
+    and no in-house robotics team — and have it work a full shift safely alongside
+    people.
+  vision: Be the default humanoid for the mid-market warehouse — the first robot a
+    50-person 3PL deploys to cover the shifts it cannot staff, not the one only
+    Amazon can afford to build.
+  target_customer:
+    profile: Mid-market third-party logistics (3PL) providers and regional
+      distribution centers, $20M–$300M revenue, hit by a chronic warehouse-labor
+      shortage and 40%+ annual turnover. They cannot afford a custom fixed-
+      automation integration or a $2M+ goods-to-person system, have no in-house
+      robotics or ML staff, and judge a robot on uptime and cost-per-pick versus
+      human labor — not on demo dexterity.
+    pain_points:
+      - Severe warehouse-labor shortage and 40%+ annual associate turnover
+      - Fixed automation (AS/RS, goods-to-person) demands huge capex and long integration
+      - No in-house robotics/ML team to operate or maintain humanoids
+      - Unclear workplace-safety rules for humans and robots sharing the same floor
+      - Skepticism that a humanoid can actually do real, reliable shift work
+  competitive_landscape:
+    primary_competitors:
+      - Tesla (Optimus) — vertically integrated, the looming scale and unit-cost threat
+      - Figure AI — best-funded humanoid pure-play; BMW and logistics pilots
+      - Agility Robotics (Digit) — furthest into real warehouse deployment (GXO, Amazon pilots)
+      - Apptronik (Apollo) — Mercedes and GXO pilots, NASA pedigree
+      - 1X Technologies — Norway-based; home and light-commercial focus
+      - Boston Dynamics (Atlas) — Hyundai-backed R&D leader, electric Atlas
+      - Unitree / UBTech — China cost leaders; export-control and tariff-gated, set the price ceiling
+      - Amazon Robotics — incumbent buyer building humanoids/automation in-house (Proteus, Sequoia)
+    competitive_advantages:
+      - Robots-as-a-Service — customers pay opex on uptime/billable robot-hours, not capex
+      - Deploy-in-a-day into human-designed aisles; no fixed infrastructure or re-racking
+      - Fleet autonomy with remote-teleop fallback, so no customer robotics team is needed
+      - Reliability- and uptime-first engineering over flashy dexterity demos
+      - US-assembled to limit China export-control and tariff exposure on key components
+  org_structure:
+    departments:
+      - strategy
+      - finance
+      - marketing
+      - operations
+      - people
+      - product
+      - legal
+    leadership_team:
+      - Jordan Avery, CEO & Co-founder — principal; product vision and final call
+      - Sam Rivera, Head of Finance — burn, runway, RaaS unit economics, vendor spend
+      - Chris Donovan, Head of Operations — fleet build, component supply, field uptime
+      - Taylor Brooks, Head of Strategy & Customer — GTM, competitive read, board comms
+      - Morgan Patel, Head of Marketing & People — brand, demand gen, talent
+  strategic_priorities:
+    current_year:
+      - Scale the deployed fleet and convert the pilot pipeline into billable sites
+      - Reach gross-margin-positive per deployed robot before the next raise
+      - Lock multi-source supply on actuators, harmonic drives, and rare-earth magnets (de-risk China)
+      - Raise the autonomy rate and cut the teleop-intervention rate to lower cost-to-serve
+      - Finalize the V2 dexterous-manipulation platform decision (build vs. defer)
+    north_star_metric: Gross margin per deployed robot-month
+  culture:
+    values:
+      - Reliability is the product — an uptime SLA, not a demo reel
+      - Uptime over demo theater; ship the boring robot that works every shift
+      - A robot sharing a human floor earns trust on safety, every shift
+      - Single-source on a critical component is a risk to retire, not a relationship to defend
+      - Move at startup speed without shipping safety debt onto a warehouse floor
+    operating_principles:
+      - Every program decision is checked against deployed-robot uptime and cost-to-serve first
+      - Single-source supply on actuators and magnets is a risk to be retired, not defended
+      - Any safety signal on a shared human floor escalates to the principal same-day
+      - We do not win on dexterity demos; we win on robot-hours billed and cost-per-pick
+      - Export-control, tariff, and workplace-safety policy is tracked weekly — it moves deployment
+  financials:
+    burn_rate_monthly: 14000000
+    runway_months: 16
+    key_metrics:
+      robots_deployed: 380
+      gross_margin_per_robot_pct: -9
+      pipeline_sites: 24
+      avg_revenue_per_robot_month_usd: 4500
+      autonomy_rate_pct: 82
+      target_autonomy_rate_pct: 95
+      fleet_uptime_pct: 91

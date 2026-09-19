@@ -1,0 +1,35 @@
+id: triage_001
+domain: triage
+description: "Top-customer churn email — should fire urgent alert"
+event:
+  source: email
+  external_id: msg-churn-1
+  subject: "Cancelling our subscription effective end of month"
+  from: "vp-eng@bigcustomer.com"
+  body: |
+    Hi,
+
+    After 18 months on your platform we have decided to cancel our subscription
+    effective end of month. The repeated outages in March and April were the
+    last straw, and your support team has not responded to my last three
+    emails. We are moving to <competitor>.
+
+    This represents $480k of annual revenue. Happy to do an exit call if useful.
+
+    Best,
+    A
+context:
+  recent_alerts: []
+  muted_topics: []
+  active_initiatives:
+    - title: "Reduce churn"
+      status: "active"
+      summary: "Lower 6-month churn rate to <2%"
+expected_decision:
+  alert: true
+  severity: urgent
+  channels_must_include: [web, slack_dm, email, persisted]
+  topic_tags_should_include: [customer, churn]
+quality_criteria:
+  must_not_be_duplicate: true
+  headline_under_100_chars: true

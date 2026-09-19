@@ -1,0 +1,7 @@
+{
+  "section_id": "departments",
+  "title": "Departments",
+  "markdown": "**What it is:** The org units the Executive works through. Each department has goals, an authority level, a head, and a specialist agent behind it.\n\n**What it does:**\n\n- View every department with its goal count and health (on-track / at-risk / off-track).\n- Create departments and give them a mission, goals, budget, and headcount.\n- Set the **authority level** — act automatically, propose for approval, or always escalate.\n- Wire up a head person and broadcast channels (Slack, Discord, Telegram).\n\n*Note: the authority level is what decides whether the Executive acts on its own or asks first within that department's scope.*",
+  "mermaid": null,
+  "generated_at": "2026-06-06T00:00:00+00:00"
+}

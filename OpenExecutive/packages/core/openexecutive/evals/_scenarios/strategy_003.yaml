@@ -1,0 +1,20 @@
+id: strategy_003
+domain: strategy
+description: "Category creation vs. riding existing category"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  arr: 4000000
+query: "We're debating whether to define a new product category ('AI Executive Intelligence') or position ourselves within an existing market we know (business intelligence). Category creation is expensive. What's the framework for making this decision?"
+expected_topics:
+  - category_creation_criteria
+  - positioning_decision
+  - resource_requirements
+  - timing_considerations
+required_routing:
+  - cso
+  - cmo
+quality_criteria:
+  framework_provided: true
+  recommendation_made: true
+  stage_appropriate: true

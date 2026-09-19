@@ -1,0 +1,7 @@
+{
+  "section_id": "knowledge",
+  "title": "Knowledge Base",
+  "markdown": "**What it is:** Your document store. Upload company knowledge — handbooks, past decks, blog posts, policies — and the Executive searches it when answering.\n\n**What it does:**\n\n- Upload documents (Markdown, PDF, Word, plain text), organized by domain like product or finance.\n- Have each document automatically chunked and indexed for fast retrieval.\n- Let specialists pull the most relevant passages into their reasoning.\n- Test retrieval in **Query mode** — type a question and see exactly which passages the Executive would pull.\n- Edit or remove documents without disrupting live queries.\n\n*Note: there's also a read-only built-in knowledge base (curated business know-how) that ships with the app.*",
+  "mermaid": null,
+  "generated_at": "2026-06-11T00:00:00+00:00"
+}

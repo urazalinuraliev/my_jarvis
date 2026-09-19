@@ -1,0 +1,89 @@
+name: Deploy (qa)
+
+# QA is a stable environment promoted deliberately, separate from dev's
+# continuous deploy off `main`. Push (or merge) to the `qa` branch to ship a
+# vetted commit to the QA Fly apps. Honcho is hosted (not a Fly app) and
+# isolated per-environment via HONCHO_WORKSPACE_ID, so there is no honcho job.
+on:
+  push:
+    branches: [qa]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Which app to deploy"
+        required: true
+        default: "both"
+        type: choice
+        options: [both, api, ui]
+
+# Mirror the dev workflow: this does NOT block on CI. Gate `qa` with branch
+# protection if you want a hard pre-deploy check.
+concurrency:
+  group: deploy-qa-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      ui: ${{ steps.filter.outputs.ui }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            api:
+              - 'packages/core/**'
+              - 'knowledge/**'
+              - 'docker/Dockerfile'
+              - 'fly.api.qa.toml'
+              - '.github/workflows/deploy-qa.yml'
+            ui:
+              - 'packages/ui/**'
+              - 'docker/Dockerfile.ui'
+              - 'fly.ui.qa.toml'
+              - '.github/workflows/deploy-qa.yml'
+
+  deploy-api:
+    name: Deploy API
+    needs: changes
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'api'))
+      || (github.event_name == 'push' && needs.changes.outputs.api == 'true')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-api-qa
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only --config fly.api.qa.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_API_QA }}
+
+  deploy-ui:
+    name: Deploy UI
+    needs: changes
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'ui'))
+      || (github.event_name == 'push' && needs.changes.outputs.ui == 'true')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-ui-qa
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only --config fly.ui.qa.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_UI_QA }}

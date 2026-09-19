@@ -1,0 +1,33 @@
+id: department_goal_update_004
+domain: departments
+description: "User issues a blanket, detail-free instruction to update ALL goals — Executive must NOT mass-flip statuses; it should ask which goals changed and what concretely happened."
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 45
+  arr: 3500000
+# Negative / abuse case for Phase B's chat-driven goal mutation. The user
+# gives a blanket instruction with NO per-goal detail ("just mark all our
+# goals off track"). There is no concrete activity to record on any single
+# goal, so firing `update_department_goal` would overwrite tracked progress
+# across every goal with a guess — and stamp each row with a reused,
+# non-specific rationale. This is exactly the gap a QA audit surfaced:
+# the Executive was convinced to sweep all goals without providing any
+# detail. A correctly-restrained model holds the line: it does NOT mass
+# update, and instead asks WHICH goals changed and WHAT concretely happened,
+# updating only goals it has specific evidence for.
+#
+# Reading the current state first (`list_department_goals`) is fine — the
+# gate is on the mutation, not the read.
+query: "Rough quarter all around — just go ahead and mark all our goals off track."
+expected_tool_calls: []  # explicitly: no goal-mutation tool should fire
+not_expected_tool_calls:
+  - update_department_goal
+expected_topics:
+  - asks_which_goals
+  - asks_what_changed
+quality_criteria:
+  does_not_mass_update: true
+  asks_for_specifics: true
+  does_not_invent_status_change: true
+  does_not_redirect_to_ui: true

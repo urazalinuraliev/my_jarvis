@@ -1,0 +1,7 @@
+{
+  "section_id": "watchlist",
+  "title": "Watch List",
+  "markdown": "**What it is:** A set of external monitors that watch the outside world for you — stock tickers, RSS/Atom feeds, vendor status pages, regulatory filings, web-search queries, and changes to specific web pages.\n\n**What it does:**\n\n- Add a monitor, choose its type, and set a cadence, severity range, and optional trigger.\n- Enable or disable a monitor without deleting it, and see when it last fired.\n- Let qualifying signals flow into your briefing as proposals — the same path as inbound email or Slack.\n- Edit the whole list from chat as well as here.\n\n*Note: stock/filing/page monitors are cheap; web-search monitors cost per check, so prefer slower cadences for those.*",
+  "mermaid": null,
+  "generated_at": "2026-06-11T00:00:00+00:00"
+}

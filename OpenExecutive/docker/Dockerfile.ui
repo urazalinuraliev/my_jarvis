@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1.6
+# Multi-stage build for the Next.js UI. Produces a small runtime image that
+# runs `node server.js` from the standalone output (see next.config.ts).
+
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY packages/ui/package.json packages/ui/package-lock.json* ./
+RUN npm ci --no-audit --no-fund
+
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY packages/ui/ ./
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+# Run as non-root for defense in depth.
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001 -G nodejs
+
+# Standalone output contains a minimal server.js plus the node_modules it
+# actually needs. Static assets must be copied in separately. (No public/
+# directory in this project — add a COPY for it here if one is introduced.)
+COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+EXPOSE 3000
+CMD ["node", "server.js"]

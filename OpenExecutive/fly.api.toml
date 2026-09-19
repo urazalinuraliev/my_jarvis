@@ -1,0 +1,70 @@
+# Fly app config — Open Executive API (FastAPI + scheduler)
+#
+# Single-instance only: the scheduler claims rows with UPDATE…RETURNING and
+# would duplicate work if two machines were running. Do not scale `count`
+# above 1 without disabling the scheduler on the extra instances.
+#
+# Provision once:
+#   flyctl apps create openexec-api-dev
+#   flyctl volumes create executive_data --region iad --size 1 -a openexec-api-dev
+#   flyctl secrets set -a openexec-api-dev ANTHROPIC_API_KEY=... (etc.)
+
+app = "openexec-api-dev"
+primary_region = "iad"
+
+[build]
+  dockerfile = "docker/Dockerfile"
+
+# "immediate" replaces in place rather than spinning up a second machine
+# during the rollout. Combined with min/max=1 below this guarantees the
+# scheduler is never running on two machines at once.
+[deploy]
+  strategy = "immediate"
+
+[env]
+  VECTOR_STORE_PATH = "/data/chroma_db"
+  COMPANY_PROFILE_PATH = "/data/company/profile.yaml"
+  EPISODIC_DB_PATH = "/data/episodic_memory.db"
+  MCP_SERVERS_CONFIG_PATH = "/data/company/mcp_servers.json"
+  ENABLE_CACHING = "true"
+  SCHEDULER_ENABLED = "true"
+  # Co-located Google Workspace MCP child (docker/workspace-mcp-launch.sh).
+  # Credentials persist on the /data volume; tier is the full tool surface.
+  # Per-install auth: set GWORKSPACE_AUTH_MODE (default oauth) + the Google
+  # secrets via `flyctl secrets set` — see docs/deployment.md.
+  WORKSPACE_MCP_CREDENTIALS_DIR = "/data/google_credentials"
+  WORKSPACE_MCP_TOOL_TIER = "complete"
+  GWORKSPACE_AUTH_MODE = "oauth"
+
+[[mounts]]
+  source = "executive_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  max_machines_running = 1
+  processes = ["app"]
+
+[[http_service.checks]]
+  # extensible-mcp builds a tool-discovery vector index at startup. Its
+  # embedding model (sentence-transformers/all-MiniLM-L6-v2) is now baked into
+  # the image (see docker/Dockerfile: HF_HOME + offline flags), so the boot no
+  # longer fetches it from Hugging Face — but index build plus the main app's
+  # Chroma load still take time on a cold machine. 5 minutes gives headroom
+  # without masking a genuinely stuck process.
+  grace_period = "5m"
+  interval = "30s"
+  method = "GET"
+  timeout = "10s"
+  path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  # 1 GB OOMs the ingest pipeline (ONNX embedder + Chroma writes).
+  # 2 GB has comfortably handled ingest + MCP startup in testing.
+  memory_mb = 2048

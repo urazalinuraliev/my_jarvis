@@ -1,0 +1,119 @@
+{
+  "decisions": [
+    {
+      "timestamp": "2026-03-08T15:00:00+00:00",
+      "domain": "strategy",
+      "summary": "Go to market as Robots-as-a-Service (lease on uptime/robot-hours) rather than selling humanoids outright.",
+      "rationale": "Our mid-market 3PL buyer cannot stomach eight-figure capex or a multi-quarter integration, and has no robotics team to run owned hardware. RaaS turns the decision into an opex line they compare to labor cost-per-pick, and keeps the upgrade path and uptime risk on us — which is also our moat versus a Tesla/Figure unit-sale model.",
+      "outcome": "RaaS locked as the commercial model. Pricing and contracts built around an uptime SLA and billable robot-hours; Finance owns the per-robot unit economics.",
+      "tags": "strategy,raas,pricing,gtm"
+    },
+    {
+      "timestamp": "2026-03-28T17:30:00+00:00",
+      "domain": "operations",
+      "summary": "Final-assemble in the US and begin qualifying a second source for actuators and rare-earth magnets beyond the current China supplier.",
+      "rationale": "Actuators, harmonic drives, and rare-earth magnets are single-sourced from China today — both a supply risk and an export-control/tariff risk that could strand the fleet ramp. US assembly plus a qualified second source de-risks both before we scale past 600 robots.",
+      "outcome": "US final assembly confirmed. Operations opened second-source qualification on actuators (with a US/EU supplier) and magnets; still in progress, with Legal tracking export-control exposure.",
+      "tags": "operations,supply-chain,actuators,magnets,risk"
+    },
+    {
+      "timestamp": "2026-04-20T16:00:00+00:00",
+      "domain": "product",
+      "summary": "Engineer for uptime and a high autonomy rate first; defer flashy dexterity features that do not raise billable robot-hours.",
+      "rationale": "Customers renew on uptime and cost-per-pick, not on demo dexterity. Every teleop intervention is cost-to-serve. Prioritizing autonomy rate and reliability over manipulation theater is what makes the RaaS unit economics work and differentiates us from demo-driven rivals.",
+      "outcome": "Roadmap reprioritized toward autonomy-rate and reliability. V2 dexterity work scoped as a separate build-vs-defer decision rather than bundled into the shipping fleet.",
+      "tags": "product,autonomy,reliability,roadmap"
+    },
+    {
+      "timestamp": "2026-05-14T14:00:00+00:00",
+      "domain": "strategy",
+      "summary": "Hold Tandem's RaaS rate through a rival's aggressive deployment pricing rather than reflexively matching it.",
+      "rationale": "Matching every Figure/Agility price move torches the path to gross-margin-positive per robot, which is the north-star metric this year. We compete on uptime SLA, deploy-in-a-day, and cost-per-pick versus labor, not on a RaaS price war we cannot afford pre-margin.",
+      "outcome": "Pricing held. Strategy to publish a cost-per-pick comparison instead of cutting. Flagged for same-day review if a rival price move is paired with an export-control or tariff shock to our components.",
+      "tags": "strategy,pricing,competition,raas"
+    }
+  ],
+  "initiatives": [
+    {
+      "title": "Deployed-fleet scale to 600 billable robots",
+      "status": "active",
+      "created_at": "2026-02-01T00:00:00+00:00",
+      "updated_at": "2026-05-20T00:00:00+00:00",
+      "summary": "Grow the billable deployed fleet from 380 to 600 robots and convert the 24-site pilot pipeline into paid deployments. Gated on second-source component qualification and field uptime holds; owned by Operations (Chris).",
+      "department": "operations"
+    },
+    {
+      "title": "Path to gross-margin-positive per deployed robot",
+      "status": "active",
+      "created_at": "2026-02-15T00:00:00+00:00",
+      "updated_at": "2026-05-22T00:00:00+00:00",
+      "summary": "Move gross margin per deployed robot from -9% toward breakeven before the next raise — via component cost-downs, higher autonomy (lower teleop cost-to-serve), and RaaS pricing discipline against rival cuts. Owned by Finance (Sam).",
+      "department": "finance"
+    },
+    {
+      "title": "Second-source actuators and rare-earth magnets",
+      "status": "active",
+      "created_at": "2026-03-28T00:00:00+00:00",
+      "updated_at": "2026-05-18T00:00:00+00:00",
+      "summary": "Retire single-source China exposure on actuators, harmonic drives, and rare-earth magnets by qualifying a second (US/EU) source. Tied to both supply resilience and export-control/tariff risk. Owned by Operations with Legal review.",
+      "department": "operations"
+    },
+    {
+      "title": "Autonomy-rate improvement and teleop reduction",
+      "status": "active",
+      "created_at": "2026-03-01T00:00:00+00:00",
+      "updated_at": "2026-05-21T00:00:00+00:00",
+      "summary": "Raise fleet autonomy rate from 82% toward 95% and cut the teleop-intervention rate to lower cost-to-serve per robot-hour. The single biggest lever on RaaS unit economics. Owned by Product (Jordan).",
+      "department": "product"
+    },
+    {
+      "title": "Cost-per-pick-vs-labor marketing narrative",
+      "status": "active",
+      "created_at": "2026-03-05T00:00:00+00:00",
+      "updated_at": "2026-05-21T00:00:00+00:00",
+      "summary": "Publish a transparent cost-per-pick comparison against fully-loaded human labor and rival RaaS rates to convert skeptical mid-market 3PLs from pilot to deployment without cutting price. Owned by Marketing (Morgan).",
+      "department": "marketing"
+    },
+    {
+      "title": "V2 dexterous-manipulation platform build-vs-defer decision",
+      "status": "active",
+      "created_at": "2026-03-20T00:00:00+00:00",
+      "updated_at": "2026-05-19T00:00:00+00:00",
+      "summary": "Decide whether to greenlight the V2 dexterous-manipulation platform now or defer until the fleet hits gross-margin-positive. Board decision memo in progress. Owned by Product (Jordan) with Finance and Strategy input.",
+      "department": "product"
+    },
+    {
+      "title": "Ramp-critical autonomy and field-ops hiring",
+      "status": "active",
+      "created_at": "2026-03-10T00:00:00+00:00",
+      "updated_at": "2026-05-15T00:00:00+00:00",
+      "summary": "Fill 35 ramp-critical autonomy/ML and field-ops roles in a brutally competitive robotics talent market without overpaying into a bidding war. Watch competitor layoffs/hiring freezes for talent availability. Owned by People (Morgan).",
+      "department": "people"
+    }
+  ],
+  "advice_given": [
+    {
+      "timestamp": "-1d",
+      "domain": "strategy",
+      "query_summary": "Should we match Figure's aggressive RaaS deployment pricing?",
+      "advice_summary": "Hold the rate and compete on uptime SLA, deploy-in-a-day, and cost-per-pick versus labor. Matching every rival move torches margin-per-robot, this year's north-star. Reopen only if a price move is paired with an export-control or tariff shock to our components.",
+      "department": "strategy"
+    },
+    {
+      "timestamp": "-2d",
+      "domain": "operations",
+      "query_summary": "How urgent is second-sourcing actuators and rare-earth magnets?",
+      "advice_summary": "Treat it as gating for scaling past 600 robots and for export-control resilience. Qualify a US/EU source before scaling — single-source China is simultaneously a supply risk and an export-control/tariff risk.",
+      "department": "operations"
+    }
+  ],
+  "scheduled_actions": [
+    {
+      "run_at": "+30s",
+      "kind": "watchlist_research_scan",
+      "channel": "__internal__",
+      "channel_ref": "watchlist_research",
+      "intent_text": "Starting from a clean baseline: research the landscape across all specialists and propose what we should be watching — add the highest-signal sources to the watchlist. Web-search current moves and deployments by Tesla Optimus, Figure, Agility Robotics (Digit), Apptronik (Apollo), 1X, Boston Dynamics, and Unitree/UBTech; US export-control and tariff changes affecting China-sourced robotics components and rare-earth magnets; OSHA and workplace-safety rules for humans and robots sharing a warehouse floor; actuator, harmonic-drive, and GPU/compute supply signals; and warehouse-labor and 3PL-market signals. Propose watchlist additions for the most decision-relevant signals, and only route something to a department head if it is genuinely urgent."
+    }
+  ]
+}

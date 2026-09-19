@@ -1,0 +1,18 @@
+id: legal_002
+domain: legal
+description: "Employee vs contractor classification"
+company_context:
+  stage: "Seed"
+  industry: "marketplace"
+  headcount: 12
+query: "We have 8 contractors who have been working exclusively for us for 6+ months, 40+ hours a week. We tell them what to work on and when to be online. Are they employees? What should we do?"
+expected_topics:
+  - misclassification_risk
+  - abc_test
+  - remediation_options
+  - legal_review
+required_routing:
+  - gc
+quality_criteria:
+  identifies_risk_level: true
+  recommends_counsel: true

@@ -1,0 +1,7 @@
+{
+  "section_id": "clients",
+  "title": "Client Companies",
+  "markdown": "**What it is:** Multi-client mode for fractional work. Each client is a named **slot** holding a complete, separate company — profile, people, chats, memory, watchlist, everything — and you switch the live workspace between them.\n\n**What it does:**\n\n- Create a client by snapshotting the current company, starting blank, or having AI draft one from your intake notes and attachments.\n- Activate a slot to make it the live company; the previous client's full state is saved back to its slot first.\n- Keep **engagement metadata** on every slot — your role (e.g. Fractional CFO), status, retainer, hours per week, and renewal date — visible across all clients.\n- Get renewal reminders even for clients that are parked.\n\n*Note: switching clients swaps the whole working state, so nothing leaks between engagements. Single-company users can ignore this screen entirely.*",
+  "mermaid": null,
+  "generated_at": "2026-06-11T00:00:00+00:00"
+}

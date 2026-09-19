@@ -1,0 +1,11 @@
+id: workflows_chat_launch_001
+domain: workflows
+description: "Executive surfaces the workflows it can run when asked, using the list_workflows tool rather than guessing"
+query: "What executive workflows can you actually run for me right now? Give me a few examples I could kick off from here."
+expected_tool_calls:
+  - list_workflows
+quality_criteria:
+  calls_list_workflows: true
+  names_real_workflows_from_results: true
+  does_not_fabricate_workflow_names: true
+  offers_to_run_one: true

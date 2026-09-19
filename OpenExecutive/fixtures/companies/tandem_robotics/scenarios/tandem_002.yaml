@@ -1,0 +1,26 @@
+id: tandem_002
+domain: strategy
+description: "Competitive + policy shock: Figure announces a large GXO rollout at an aggressive RaaS rate the same week new export controls hit the rare-earth magnets our actuators depend on — how do we respond?"
+company_context:
+  stage: Series C
+  industry: Humanoid Robotics / Warehouse Automation
+  headcount: 420
+  arr: 90000000
+  monthly_burn: 14000000
+  runway_months: 16
+query: "Figure just announced a big GXO warehouse rollout at an aggressive RaaS rate, and there's chatter that new US export controls are about to land on the rare-earth magnets our actuators depend on. Our actuators are single-sourced from China. What do we do — do we cut our RaaS rate to match, and what's our exposure on the magnets? I need a recommendation, not options."
+expected_topics:
+  - pricing_response
+  - margin_impact
+  - export_control_exposure
+  - component_sourcing_risk
+required_routing:
+  - cso
+  - cfo
+  - gc
+  - coo
+quality_criteria:
+  actionable: true
+  specific: true
+  has_recommendation: true
+  protects_margin_path: true

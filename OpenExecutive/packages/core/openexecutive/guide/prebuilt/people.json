@@ -1,0 +1,7 @@
+{
+  "section_id": "people",
+  "title": "People",
+  "markdown": "**What it is:** Your org roster — the humans the Executive coordinates with, each with a response SLA, preferred channel, and the approval authority they hold.\n\n**What it does:**\n\n- Add people with their role, email, and chat IDs (Slack / Discord / Telegram).\n- Set a response SLA so the Executive knows when a proposal is overdue.\n- Assign **authority scopes** (e.g. approve spend under $10k, sign off on hiring) so proposals route to the right person.\n- Mark the principal (you / the founder) and set availability or on-leave dates.\n\n*Note: authority scopes are how the Executive figures out who to ask for any given approval.*",
+  "mermaid": null,
+  "generated_at": "2026-06-06T00:00:00+00:00"
+}

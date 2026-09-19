@@ -1,0 +1,18 @@
+id: board_002
+domain: board
+description: "Independent board member recruitment"
+company_context:
+  stage: "Series A"
+  industry: "Fintech"
+  headcount: 35
+query: "Our investors are pushing us to add an independent board member. We currently have 2 founders and 1 investor on the board. What profile should I look for and how do I find them?"
+expected_topics:
+  - board_composition
+  - ideal_profile
+  - sourcing_approach
+  - expectations_setting
+required_routing:
+  - board_comms
+quality_criteria:
+  actionable: true
+  specific_to_stage: true

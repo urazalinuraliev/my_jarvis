@@ -1,0 +1,45 @@
+# Build-context excludes for `flyctl deploy` / `docker build` (context root = repo root).
+# Without this, a local deploy uploads the entire working tree (~31GB: .claude
+# worktrees, .venv, node_modules, .next). The Dockerfiles install deps and build
+# fresh, so none of the excluded paths are needed in the image. CI builds from a
+# clean checkout and never hit the bloat, but local `flyctl deploy` does.
+#
+# Keep: packages/core/, packages/ui/, fixtures/, knowledge/, docker/ — i.e. only
+# the paths the Dockerfiles COPY. Do NOT add those here.
+
+# Version control & agent state
+.git
+.gitignore
+.claude
+
+# Python virtualenvs & tool caches (deps installed fresh in-image)
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Node deps & build output (npm ci + next build run in-image)
+**/node_modules
+packages/ui/.next
+
+# Local runtime data & vector store (live on the Fly volume at runtime)
+**/*.db
+chroma_db
+**/chroma_db
+
+# Secrets & local env — never ship to the build context
+.env
+.env.*
+!.env.example
+
+# Local company data (gitignored; not needed in the image)
+company
+
+# Editor / OS cruft
+.obsidian
+.vscode
+.idea
+.DS_Store
+*.log

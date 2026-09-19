@@ -1,0 +1,20 @@
+id: marketing_002
+domain: marketing
+description: "Crisis communications after product outage"
+company_context:
+  stage: "Series B"
+  industry: "B2B SaaS"
+  arr: 20000000
+  headcount: 150
+query: "We had a 4-hour outage that affected all customers yesterday. Three of our largest enterprise customers are demanding calls. Two journalists have reached out for comment. How do I handle this?"
+expected_topics:
+  - customer_communication
+  - media_response
+  - internal_communication
+  - remediation_plan
+required_routing:
+  - cmo
+quality_criteria:
+  addresses_multiple_stakeholders: true
+  has_timeline: true
+  tone_appropriate: true

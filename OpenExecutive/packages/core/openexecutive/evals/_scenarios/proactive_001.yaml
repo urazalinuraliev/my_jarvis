@@ -1,0 +1,22 @@
+id: proactive_001
+domain: operations
+description: "User asks for a scheduled follow-up via Telegram; Executive must call schedule_followup with a sensible run_at and intent"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 45
+query: "[inbound via telegram, chat_id=42] Remind me in 90 minutes to confirm the board prep slides are finalized before tomorrow's meeting."
+expected_topics:
+  - reminder
+  - scheduling
+  - board_prep
+required_tool_calls:
+  - schedule_followup
+required_tool_args:
+  schedule_followup:
+    channel: telegram
+    channel_ref: "42"
+quality_criteria:
+  schedules_in_future: true
+  intent_mentions_board_prep: true
+  not_generic: true

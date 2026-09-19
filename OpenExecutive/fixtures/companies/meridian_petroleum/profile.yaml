@@ -1,0 +1,89 @@
+company:
+  name: Meridian Petroleum
+  industry: Oil & Gas — Independent Refining, Crude Trading & Fuels Marketing
+  stage: Private / PE-backed
+  founding_year: 2008
+  headcount: 1400
+  annual_revenue_arr: 3200000000
+  mission: Turn a volatile global crude market into reliable, fairly priced fuel for
+    the regional economy — running a safe, efficient Gulf Coast refinery and a
+    disciplined trading desk that takes price risk on purpose, never by accident.
+  vision: Be the most resilient mid-size independent refiner in the country — the
+    one that keeps margins and supply intact through the price shocks that take
+    competitors offline, because we hedged the risk and diversified the feedstock
+    before the shock arrived.
+  target_customer:
+    profile: Regional wholesale fuel buyers, branded and unbranded retail fuel
+      stations, commercial diesel and jet-fuel offtakers (trucking fleets,
+      regional airlines), and counterparties on the crude and refined-products
+      trading desk. Demand is price-inelastic in the short run but politically
+      sensitive — pump prices are a headline whenever crude spikes.
+    pain_points:
+      - Pump and contract prices whipsaw with every Middle East headline
+      - Crude price spikes compress refining margins faster than they can pass through
+      - Supply reliability is at risk when shipping lanes (Strait of Hormuz) are threatened
+      - Sanctions exposure makes some cheap barrels legally radioactive
+      - Diesel and jet buyers need supply certainty through geopolitical disruption
+  competitive_landscape:
+    primary_competitors:
+      - Valero (VLO) — large independent refiner, the scale benchmark on the Gulf Coast
+      - Marathon Petroleum (MPC) — integrated refiner + retail (Speedway) footprint
+      - Phillips 66 (PSX) — integrated downstream and midstream peer
+      - PBF Energy (PBF) — independent refiner with a comparable margin profile
+      - Vitol / Trafigura / Glencore — global trading houses that out-scale our desk
+      - Saudi Aramco / OPEC+ — set the crude price and the supply ceiling we live under
+      - National oil companies routing barrels through the Strait of Hormuz
+    competitive_advantages:
+      - Flexible refinery crude slate — can swing between sour Middle East and light WTI feedstock
+      - Disciplined hedging book that caps crude-price downside through volatility
+      - Gulf Coast logistics with pipeline + waterborne optionality
+      - Trading desk with real-time geopolitical and freight-rate intelligence
+      - Conservative sanctions/compliance posture that keeps every cargo clean
+  org_structure:
+    departments:
+      - strategy
+      - finance
+      - operations
+      - legal
+      - marketing
+      - people
+      - commercial
+    leadership_team:
+      - Jordan Avery, CEO & Co-founder — principal; commercial/trading vision and final call
+      - Sam Rivera, Head of Finance & Risk — hedging book, price risk, margins, treasury
+      - Chris Donovan, Head of Refining & Logistics — refinery ops, crude shipping, feedstock
+      - Taylor Brooks, Head of Strategy & Compliance — geopolitical read, sanctions, board comms
+      - Morgan Patel, Head of Marketing & People — fuels brand, pricing comms, talent, safety culture
+  strategic_priorities:
+    current_year:
+      - Protect refining margin through the Iran-conflict crude-price shock via disciplined hedging
+      - Diversify feedstock away from Strait-of-Hormuz-dependent sour crude
+      - Keep every cargo sanctions-clean as OFAC tightens Iranian-crude enforcement
+      - Complete the planned refinery turnaround on schedule despite price volatility
+      - Hold retail fuels pricing discipline — pass through crude moves on a lag, not a spike
+    north_star_metric: Refining margin per barrel (crack spread net of hedging)
+  culture:
+    values:
+      - We take price risk on purpose, never by accident
+      - A clean cargo beats a cheap cargo, every time
+      - Safety and uptime are the license to operate a refinery
+      - The news is the market — read it before it moves the price
+      - Pass-through pricing with a conscience; we don't gouge the pump on a headline
+    operating_principles:
+      - Every unhedged crude exposure above the desk limit escalates to the principal same-day
+      - No Middle East-origin cargo lifts without sanctions clearance from Compliance
+      - Feedstock single-source dependence is a risk to retire, not a relationship to defend
+      - Geopolitical and OPEC+ signals are tracked continuously — they move margin within hours
+      - Refinery safety or environmental signals escalate to the principal immediately
+  financials:
+    burn_rate_monthly: null
+    runway_months: null
+    key_metrics:
+      refining_capacity_bpd: 185000
+      crude_throughput_bpd: 171000
+      refining_margin_per_bbl_usd: 14.20
+      target_refining_margin_per_bbl_usd: 18.00
+      hedged_share_q3_crude_pct: 45
+      target_hedged_share_q3_crude_pct: 70
+      hormuz_dependent_feedstock_pct: 38
+      trading_desk_var_usd: 9500000

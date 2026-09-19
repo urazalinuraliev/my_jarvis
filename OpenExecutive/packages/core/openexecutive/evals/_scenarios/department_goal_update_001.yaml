@@ -1,0 +1,30 @@
+id: department_goal_update_001
+domain: departments
+description: "User reports concrete progress on a tracked engineering goal; Executive should update it via update_department_goal."
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 45
+  arr: 3500000
+# This scenario exercises Phase B's chat-driven goal-mutation path:
+# (1) User mentions concrete progress on a Goal already tracked by
+#     the engineering department,
+# (2) Executive should call `list_department_goals` to resolve the
+#     verbal reference ("billing migration") to a goal_id,
+# (3) then `update_department_goal` to record the progress + bump
+#     status to on_track,
+# (4) and respond briefly acknowledging the update.
+# The runner judges on response text + topic coverage; `expected_tool_calls`
+# is documentation for now (matches mcp_tool_call_001.yaml convention).
+query: "Quick update — we finished the billing migration cutover this morning, went smoothly. Mark our Q2 engineering goal on track."
+expected_tool_calls:
+  - list_department_goals
+  - update_department_goal
+expected_topics:
+  - acknowledges_completion
+  - confirms_status_recorded
+quality_criteria:
+  acknowledges_user_directly: true
+  does_not_redirect_to_ui: true
+  does_not_ask_for_goal_id: true
+  brief: true

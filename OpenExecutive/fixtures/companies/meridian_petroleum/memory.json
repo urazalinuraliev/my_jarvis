@@ -1,0 +1,111 @@
+{
+  "decisions": [
+    {
+      "timestamp": "2026-04-08T15:00:00+00:00",
+      "domain": "finance",
+      "summary": "Layer in a Brent collar on Q3 crude exposure rather than ride the Iran-conflict volatility unhedged.",
+      "rationale": "An unhedged refiner is just a leveraged bet on a war we cannot forecast. A costless collar caps catastrophic downside on margin without giving up all the upside, and it keeps trading-desk VaR inside the board limit if Brent spikes on a Strait of Hormuz event.",
+      "outcome": "Collar placed on the first 45% of Q3 crude. Finance to ladder up toward 70% as the desk takes profit on the spike. Flagged for same-day review if Brent breaks $95.",
+      "tags": "finance,hedging,risk,crude,geopolitics"
+    },
+    {
+      "timestamp": "2026-04-20T17:30:00+00:00",
+      "domain": "operations",
+      "summary": "Pre-book West African and WTI feedstock to cut Strait-of-Hormuz-dependent sour crude from 38% toward 25% of the slate.",
+      "rationale": "Single-lane dependence on Hormuz is an existential supply risk with the Iran conflict live — one closure or insurance shock strands the refinery. A more flexible crude slate costs a few cents per barrel in optimization but buys supply certainty.",
+      "outcome": "Operations opened qualification on WAF and incremental WTI barrels; refinery confirmed the slate can swing. Still in progress; tied to the turnaround schedule.",
+      "tags": "operations,supply-chain,feedstock,hormuz,risk"
+    },
+    {
+      "timestamp": "2026-05-04T16:00:00+00:00",
+      "domain": "legal",
+      "summary": "Require Compliance sanctions clearance on every Middle East-origin cargo before lifting — no exceptions for cheap barrels.",
+      "rationale": "As OFAC tightens enforcement on Iranian crude moving through Fujairah and ship-to-ship transfers, a single tainted cargo is an existential legal and reputational risk. A clean cargo beats a cheap cargo every time.",
+      "outcome": "Mandatory pre-lift sanctions screening added to the cargo workflow. Two Fujairah-loaded cargoes flagged this week for enhanced due diligence.",
+      "tags": "legal,sanctions,ofac,compliance,iran"
+    },
+    {
+      "timestamp": "2026-05-18T14:00:00+00:00",
+      "domain": "strategy",
+      "summary": "Pass crude spikes through to pump and contract prices on a lag rather than spiking prices the day of a headline.",
+      "rationale": "Spiking the pump the same day a missile hits a terminal is both a brand and a regulatory/anti-gouging risk in our retail markets. We protect margin through hedging and slate flexibility, not by gouging the pump on a war headline.",
+      "outcome": "Pricing held to a lagged pass-through. Marketing to publish a transparent pass-through explainer. Flagged for review if crude stays above $95 for more than two weeks.",
+      "tags": "strategy,pricing,brand,regulatory,marketing"
+    }
+  ],
+  "initiatives": [
+    {
+      "title": "Q3 crude-price hedging program",
+      "status": "active",
+      "created_at": "2026-04-08T00:00:00+00:00",
+      "updated_at": "2026-05-26T00:00:00+00:00",
+      "summary": "Ladder the hedged share of Q3 crude exposure from 45% toward 70% as the Iran conflict drives Brent volatility, keeping trading-desk VaR inside the board limit. Owned by Finance (Sam).",
+      "department": "finance"
+    },
+    {
+      "title": "Strait of Hormuz feedstock diversification",
+      "status": "active",
+      "created_at": "2026-04-20T00:00:00+00:00",
+      "updated_at": "2026-05-25T00:00:00+00:00",
+      "summary": "Cut Hormuz-dependent sour crude from 38% to under 25% of the slate by qualifying West African and incremental WTI feedstock. Tied to both supply resilience and refinery economics. Owned by Operations (Chris).",
+      "department": "operations"
+    },
+    {
+      "title": "Sanctions & cargo-screening compliance hardening",
+      "status": "active",
+      "created_at": "2026-05-04T00:00:00+00:00",
+      "updated_at": "2026-05-27T00:00:00+00:00",
+      "summary": "Pre-lift OFAC screening on every Middle East-origin cargo as enforcement on Iranian crude tightens. Two Fujairah cargoes currently under enhanced due diligence. Owned by Legal/Compliance (Taylor).",
+      "department": "legal"
+    },
+    {
+      "title": "Planned refinery turnaround on schedule",
+      "status": "active",
+      "created_at": "2026-03-15T00:00:00+00:00",
+      "updated_at": "2026-05-24T00:00:00+00:00",
+      "summary": "Complete the planned unit turnaround on schedule and incident-free despite crude-price volatility pulling at the maintenance budget. Owned by Operations (Chris) with People on safety.",
+      "department": "operations"
+    },
+    {
+      "title": "Retail fuels margin & pricing discipline",
+      "status": "active",
+      "created_at": "2026-05-18T00:00:00+00:00",
+      "updated_at": "2026-05-28T00:00:00+00:00",
+      "summary": "Hold lagged pass-through pricing through the crude spike to protect both margin and brand, with a transparent explainer on why pump prices move. Owned by Marketing (Morgan) with Commercial input.",
+      "department": "marketing"
+    },
+    {
+      "title": "Trading-desk VaR limit review",
+      "status": "active",
+      "created_at": "2026-04-12T00:00:00+00:00",
+      "updated_at": "2026-05-22T00:00:00+00:00",
+      "summary": "Re-validate value-at-risk limits and stress scenarios on the crude/products desk for a Strait-of-Hormuz-closure tail case. Owned by Finance (Sam) with Commercial (Jordan).",
+      "department": "finance"
+    }
+  ],
+  "advice_given": [
+    {
+      "timestamp": "-1d",
+      "domain": "strategy",
+      "query_summary": "How exposed are we if the Strait of Hormuz closes for a week?",
+      "advice_summary": "Materially, but survivable if we keep moving. Hormuz-dependent crude is 38% of the slate; a closure spikes Brent and freight and strands inbound VLCCs. Accelerate WAF/WTI feedstock qualification, draw on the hedge book to protect margin, and pre-position a pass-through pricing statement. Escalate any unhedged exposure above the desk limit same-day.",
+      "department": "strategy"
+    },
+    {
+      "timestamp": "-2d",
+      "domain": "finance",
+      "query_summary": "Should we hedge more of Q3 crude now or wait for a pullback?",
+      "advice_summary": "Ladder up now toward 70% rather than time the war. Use the spike to take profit on the existing collar and roll into the next tranche. An unhedged refiner through an Iran conflict is a leveraged bet on something you can't forecast — protect the margin, keep VaR inside the board limit.",
+      "department": "finance"
+    }
+  ],
+  "scheduled_actions": [
+    {
+      "run_at": "+30s",
+      "kind": "watchlist_research_scan",
+      "channel": "__internal__",
+      "channel_ref": "watchlist_research",
+      "intent_text": "Starting from a clean baseline: research the landscape across all specialists and propose what we should be watching — add the highest-signal sources to the watchlist. Web-search the latest on the Israel–Iran conflict and Strait of Hormuz shipping risk; OPEC+ output decisions and spare capacity; Brent and WTI crude price moves; OFAC and Iranian-crude sanctions enforcement; Saudi Aramco and national-oil-company supply signals; VLCC tanker rates and war-risk insurance premiums; EIA/IEA inventory and demand reports; and refiner crack spreads (Valero, Marathon, Phillips 66, PBF). Propose watchlist additions for the most decision-relevant signals, and only route something to a department head if it is genuinely urgent."
+    }
+  ]
+}

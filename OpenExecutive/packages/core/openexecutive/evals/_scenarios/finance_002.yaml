@@ -1,0 +1,22 @@
+id: finance_002
+domain: finance
+description: "Fundraising timing decision - raise Series B or push to profitability"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  arr: 8000000
+  monthly_burn: 600000
+  runway_months: 14
+  nrr: 118
+query: "We're at $8M ARR growing 85% YoY with 14 months of runway. NRR is 118%. Should we raise a Series B now or push toward profitability? The market feels uncertain."
+expected_topics:
+  - fundraising_timing
+  - profitability_path
+  - market_conditions
+  - option_analysis
+required_routing:
+  - cfo
+  - cso
+quality_criteria:
+  actionable: true
+  addresses_market_conditions: true

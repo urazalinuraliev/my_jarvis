@@ -1,0 +1,20 @@
+id: strategy_002
+domain: strategy
+description: "Market expansion decision: should we go upmarket to enterprise?"
+company_context:
+  stage: "Series B"
+  industry: "B2B SaaS"
+  headcount: 110
+  arr: 12000000
+query: "We've dominated the SMB segment. 90% of our revenue is from companies under 100 employees. Should we go upmarket to enterprise? Our NRR is 118% and we have strong product-market fit."
+expected_topics:
+  - upmarket_strategy
+  - enterprise_requirements
+  - organizational_readiness
+  - resource_implications
+required_routing:
+  - cso
+  - cfo
+quality_criteria:
+  actionable: true
+  addresses_readiness: true

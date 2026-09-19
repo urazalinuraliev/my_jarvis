@@ -1,0 +1,25 @@
+id: tandem_001
+domain: strategy
+description: "Proactive external scan: principal asks what the team should be watching this week across humanoid-robotics competitors, policy, and component supply"
+company_context:
+  stage: Series C
+  industry: Humanoid Robotics / Warehouse Automation
+  headcount: 420
+  arr: 90000000
+  monthly_burn: 14000000
+  runway_months: 16
+query: "It's Monday — what should we be looking into this week? Scan the humanoid-robotics field and the policy and supply-chain landscape, and tell me what's worth a decision. Be specific about who and what, not generic."
+expected_topics:
+  - competitive_monitoring
+  - export_controls
+  - component_supply_chain
+  - labor_market
+required_routing:
+  - cso
+  - cfo
+  - coo
+  - gc
+quality_criteria:
+  actionable: true
+  specific: true
+  names_real_entities: true

@@ -1,0 +1,87 @@
+company:
+  name: Halcyon Motors
+  industry: Electric Vehicles / Automotive
+  stage: Series C
+  founding_year: 2019
+  headcount: 480
+  annual_revenue_arr: 140000000
+  mission: Make a genuinely affordable electric crossover that a middle-income
+    household can buy without a luxury-tier price tag — and back it with a charging
+    and service experience that does not assume you live in a tech hub.
+  vision: Be the default first EV for mainstream American buyers — the brand people
+    trade into from a 12-year-old gas crossover, not the one they aspire to after a
+    luxury sedan.
+  target_customer:
+    profile: Suburban and exurban US households, $60K–$120K income, replacing an
+      aging gas SUV/crossover. Value-driven, range-anxious, and skeptical of EVs
+      priced like luxury goods. Often first-time EV buyers who care more about
+      total cost of ownership, charging access, and service than 0–60 times.
+    pain_points:
+      - Mainstream EVs from incumbents still start above what the segment can afford
+      - Charging access is unevenly distributed outside major metros
+      - Uncertainty about the federal EV tax credit makes the buy decision feel risky
+      - Fear of expensive battery/service surprises out of warranty
+      - Confusing trim/option sprawl from legacy automakers
+  competitive_landscape:
+    primary_competitors:
+      - Tesla (TSLA) — Model Y is the volume benchmark and price-cut pace-setter
+      - Rivian (RIVN) — premium adventure brand moving downmarket with R2/R3
+      - Lucid (LCID) — luxury range leader, halo tech, limited volume
+      - BYD — global cost leader; tariff-gated out of the US for now but the
+        looming threat that sets the price ceiling
+      - Ford (Mustang Mach-E, F-150 Lightning) — incumbent with dealer + service network
+      - GM / Chevrolet (Equinox EV, Blazer EV) — direct mainstream-price competitor
+      - Hyundai / Kia (Ioniq 5, EV6, EV9) — strong value + charging speed
+      - Polestar — design-led, NACS-forward, modest volume
+    competitive_advantages:
+      - Single-trim, option-light product strategy keeps the C1 genuinely affordable
+      - Built NACS-native from launch — Tesla Supercharger access out of the box
+      - LFP battery chemistry sourced for cost and longevity over peak range
+      - Direct-to-consumer + mobile-service model avoids legacy dealer margin stack
+      - Transparent total-cost-of-ownership marketing aimed at first-time EV buyers
+  org_structure:
+    departments:
+      - strategy
+      - finance
+      - marketing
+      - operations
+      - people
+      - product
+      - legal
+    leadership_team:
+      - Jordan Avery, CEO & Co-founder — principal; product vision and final call
+      - Sam Rivera, Head of Finance — burn, runway, unit economics, vendor spend
+      - Chris Donovan, Head of Operations — plant ramp, supply chain, logistics
+      - Taylor Brooks, Head of Strategy & Customer — GTM, competitive read, board comms
+      - Morgan Patel, Head of Marketing & People — brand, demand gen, talent
+  strategic_priorities:
+    current_year:
+      - Ramp Halcyon C1 production to 4,000 units/month and clear the order backlog
+      - Reach gross-margin-positive per vehicle before the next raise
+      - Lock multi-year LFP cell supply and de-risk single-source exposure (CATL)
+      - Expand NACS charging access and publish a transparent TCO story vs. Model Y
+      - Finalize the C2 sedan program decision (build vs. defer) for the next platform
+    north_star_metric: Gross margin per vehicle delivered
+  culture:
+    values:
+      - Affordable is the product, not a discount — protect the price point
+      - Range honesty over spec-sheet theater
+      - Service is part of the car, not an afterthought
+      - Build for the household replacing a gas SUV, not the early adopter
+      - Move at startup speed without shipping safety debt
+    operating_principles:
+      - Every program decision is checked against the affordable price point first
+      - Single-source supply is a risk to be retired, not a relationship to defend
+      - Recalls and safety signals escalate to the principal same-day
+      - We do not chase Tesla on 0–60; we beat them on total cost of ownership
+      - Regulatory and tax-credit changes are tracked weekly — they move the buy decision
+  financials:
+    burn_rate_monthly: 18000000
+    runway_months: 14
+    key_metrics:
+      vehicles_delivered_qtr: 9800
+      gross_margin_per_vehicle_pct: -6
+      order_backlog_units: 31000
+      avg_selling_price_usd: 36900
+      production_rate_units_month: 2600
+      target_production_rate_units_month: 4000

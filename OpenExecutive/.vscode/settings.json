@@ -1,0 +1,13 @@
+{
+  // Repo-wide editor settings shared across all collaborators. Personal
+  // tweaks (theme, font, key bindings) belong in user settings, not here.
+
+  // Status-bar-tasks (actboy168.tasks) groups tasks by label prefix. The
+  // "Fly: " prefix on every task in .vscode/tasks.json lands them under a
+  // single "Fly" dropdown in the status bar.
+  "tasks.statusbar.default.color.run": "statusBar.foreground",
+
+  // shellcheck the operator notebook the same way CI lints Python.
+  "shellcheck.enable": true,
+  "shellcheck.run": "onType"
+}

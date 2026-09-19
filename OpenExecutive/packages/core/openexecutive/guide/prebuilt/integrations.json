@@ -1,0 +1,7 @@
+{
+  "section_id": "integrations",
+  "title": "Integrations",
+  "markdown": "**What it is:** The channels that connect the Executive to where your team already works — so proposals, updates, and replies flow through familiar tools instead of just the web app.\n\n**What it does:**\n\n- **Slack / Google Chat:** receive messages and thread replies, send proposals and alerts.\n- **Discord / Telegram:** direct-message conversations for proposals and approvals.\n- **Email:** poll for inbound mail and send outbound replies.\n- **Google Workspace:** the Executive can send and draft Gmail (recipients limited to your People roster) and manage Calendar events, including Google Meet links.\n- **MCP:** expose the Executive's specialist council and company context to external AI tools.\n\n*Note: every channel uses the same approval flow and is recorded in the Audit Log. Channels are turned on with environment configuration, not from this screen.*",
+  "mermaid": null,
+  "generated_at": "2026-06-11T00:00:00+00:00"
+}

@@ -1,0 +1,19 @@
+{
+  // VS Code will prompt collaborators to install these on first open.
+  // None are required to run the bash file directly from a terminal — they
+  // just make the Fly tasks feel like notebook cells.
+  "recommendations": [
+    // Pins every task in .vscode/tasks.json to the status bar as a clickable
+    // button. With this installed, "Fly: push OpenRouter pair" et al. show
+    // up at the bottom of the editor for one-click invocation.
+    "actboy168.tasks",
+
+    // Standard bash linter — flags typos in fly-secrets.sh before you push
+    // a half-broken function to Fly.
+    "timonwong.shellcheck",
+
+    // Hover docs + go-to-def for shell functions. Useful when reading the
+    // sync_all helper to see what each topic function does.
+    "mads-hartmann.bash-ide-vscode"
+  ]
+}

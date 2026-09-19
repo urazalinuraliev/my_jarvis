@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python-lint:
+    name: Python lint & type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      # docker/Dockerfile installs from uv.lock with `uv export --locked`, which
+      # fails the deploy build if the lock is stale. `uv sync` below would
+      # silently refresh a stale lock in this checkout, so check it first.
+      - name: Check uv.lock is current
+        run: cd packages/core && uv lock --check
+
+      - name: Install dependencies
+        run: cd packages/core && uv sync --extra dev
+
+      - name: Run ruff
+        run: cd packages/core && uv run ruff check openexecutive/
+
+      - name: Run mypy
+        run: cd packages/core && uv run mypy openexecutive/ --ignore-missing-imports
+
+  python-test:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: cd packages/core && uv sync --extra dev
+
+      - name: Run unit tests
+        run: cd packages/core && uv run pytest tests/unit/ -v --tb=short
+
+  ui-typecheck:
+    name: UI type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: cd packages/ui && npm ci
+
+      - name: Type check
+        run: cd packages/ui && npx tsc --noEmit
+
+      # node:test suites added in #100. Runs on the same Node 22 the job
+      # already uses (--experimental-strip-types needs 22.6+).
+      - name: Run UI unit tests
+        run: cd packages/ui && npm test
+
+      - name: Build
+        run: cd packages/ui && npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

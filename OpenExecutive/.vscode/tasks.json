@@ -1,0 +1,130 @@
+{
+  // Each task wraps one function from scripts/fly-secrets.sh and runs it in
+  // a dedicated terminal panel so output stays put between runs.
+  //
+  // How to fire:
+  //   - Cmd/Ctrl+Shift+P → "Tasks: Run Task" → pick one
+  //   - Or install the recommended `actboy168.tasks` extension (see
+  //     .vscode/extensions.json) to get one-click buttons in the status bar
+  //
+  // Each task re-sources fly-secrets.sh and .env on every invocation, so
+  // editing either file takes effect on the next run without restarting
+  // anything.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Fly: list secrets (both apps)",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && list_all",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: show non-secret env (both apps)",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && config_env_all",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: dump real env values — API",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && dump_env_api",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: dump real env values — UI",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && dump_env_ui",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: tail API logs",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && tail_api",
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: tail UI logs",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && tail_ui",
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: push ANTHROPIC_API_KEY",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && anthropic_key",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: push OpenRouter pair",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && openrouter",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: push BACKEND_SHARED_SECRET (both apps)",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && backend_shared_secret",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: push Slack tokens",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && slack",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: push Email config",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && email",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: push Telegram tokens",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && telegram",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: push Discord tokens",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && discord",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: push Auth.js (UI)",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && auth",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: sync_all (push everything present in .env)",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && sync_all",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fly: check /agents/models",
+      "type": "shell",
+      "command": "source scripts/fly-secrets.sh && check_models",
+      "presentation": { "panel": "dedicated", "clear": true, "reveal": "always" },
+      "problemMatcher": []
+    }
+  ]
+}

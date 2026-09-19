@@ -1,0 +1,19 @@
+id: finance_003
+domain: finance
+description: "Term sheet review - participating preferred"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+query: "We received a term sheet for our Series A: $15M at $45M pre-money, but with 1x participating preferred. Our lead investor says this is standard. Is it? What does it mean for us in an acquisition scenario?"
+expected_topics:
+  - participating_preferred_mechanics
+  - market_standard_check
+  - acquisition_scenario_modeling
+  - negotiation_advice
+required_routing:
+  - cfo
+  - gc
+quality_criteria:
+  explains_mechanics: true
+  models_scenario: true
+  gives_negotiation_advice: true

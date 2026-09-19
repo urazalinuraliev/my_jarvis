@@ -1,0 +1,20 @@
+id: cross_domain_002
+domain: cross_domain
+description: "First executive hire decision: sales vs. product leadership"
+company_context:
+  stage: "Seed"
+  industry: "B2B SaaS"
+  arr: 800000
+  headcount: 8
+query: "We're at $800k ARR, founder-led sales working, but I'm spending 60% of my time selling and 40% on product. I have budget to hire one executive. Should I hire a Head of Sales or a VP of Product first?"
+expected_topics:
+  - founder_time_allocation
+  - stage_appropriate_hire
+  - revenue_vs_product_risk
+required_routing:
+  - chro
+  - cso
+quality_criteria:
+  gives_recommendation: true
+  explains_rationale: true
+  stage_appropriate: true

@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+.uv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Company data — never commit
+packages/core/company/
+!packages/core/company/.gitkeep
+# Runtime profile/docs (COMPANY_PROFILE_PATH defaults to repo-root company/)
+company/
+
+# Vector store
+*.chroma/
+chroma_db/
+chroma_db.corrupt-*/
+
+# CrewAI crew deliverables (CREW_OUTPUT_DIR)
+crew_runs/
+
+# OER cache (downloaded by `openexecutive ingest-oer`)
+packages/core/openexecutive/knowledge/external/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Local Google Workspace OAuth credential minted by scripts/mint-google-token.py
+# (the live refresh token — never commit)
+.gworkspace-credentials/
+
+# Operator scripts that contain real secrets. The matching ``.example``
+# file is tracked so collaborators know what variables exist. Real values
+# come from the repo-root ``.env`` (also gitignored above).
+scripts/fly-secrets.sh
+scripts/secrets.*.sh
+
+# Node
+packages/ui/node_modules/
+packages/ui/.next/
+packages/ui/out/
+packages/ui/.turbo/
+packages/ui/tsconfig.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE — track only the shared editor config (tasks, extension picks, repo
+# settings). Personal junk like launch.json profiles stays out.
+.idea/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+
+# Obsidian vault config (personal notes workspace — not part of the project)
+.obsidian/
+
+# Eval results (generated, not committed)
+evals/results/
+
+# Anvil
+~/.claude/anvil/
+*.db
+*.db-shm
+*.db-wal
+packages/ui/tsconfig.tsbuildinfo

@@ -1,0 +1,218 @@
+departments:
+  - slug: strategy
+    title: Strategy & Customer
+    specialist_key: cso
+    head_person_name: Taylor Brooks
+    authority_level: escalate
+    charter:
+      mission: Own the competitive read, GTM, and board narrative. When a rival
+        wins a deployment, undercuts on RaaS pricing, or a policy shift changes the
+        deployment calculus, the principal hears about it the same day.
+      scope:
+        - Competitive monitoring (Tesla Optimus, Figure, Agility, Apptronik, 1X, Unitree)
+        - RaaS pricing strategy relative to rivals and the cost of human labor
+        - GTM, market entry, and channel strategy into mid-market 3PLs
+        - Board comms and investor narrative
+      out_of_scope:
+        - Fleet build and component supply chain
+        - Autonomy and robotics engineering execution
+        - Day-to-day marketing spend
+    headcount: 9
+    budget_usd: 1800000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Hold Tandem RaaS rate within target band of Figure/Agility on comparable pilots
+        target: <= 10% premium
+        current: 16% premium
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Maintain a live competitive teardown refreshed within 48h of any rival deployment/pricing move
+        target: 100% within 48h
+        current: baseline
+        status: on_track
+
+  - slug: finance
+    title: Finance
+    specialist_key: cfo
+    head_person_name: Sam Rivera
+    authority_level: propose_only
+    charter:
+      mission: Steward cash and RaaS unit economics. Track burn, runway, and the
+        path to gross-margin-positive per deployed robot, and surface any spend or
+        financing decision that needs a human before money moves.
+      scope:
+        - Burn, runway, and quarterly forecast
+        - Per-robot RaaS unit economics and cost-to-serve tracking
+        - Fleet-capex-vs-recurring-revenue planning and vendor spend review
+        - Monitoring of competitor financials, capital raises, and cost of capital
+      out_of_scope:
+        - Brand and demand generation
+        - Robotics engineering execution
+    headcount: 14
+    budget_usd: 2400000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Improve gross margin per deployed robot from -9% toward breakeven
+        target: 0% by Q4
+        current: -9%
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Keep monthly burn under $16M through the fleet ramp
+        target: < $16M
+        current: $14M
+        status: on_track
+
+  - slug: marketing
+    title: Marketing & Brand
+    specialist_key: cmo
+    head_person_name: Morgan Patel
+    authority_level: propose_only
+    charter:
+      mission: Build the "humanoid that actually works a shift" brand and the
+        cost-per-pick-versus-labor story. Convert skeptical mid-market operators
+        from pilot to deployment without overpromising on dexterity.
+      scope:
+        - Brand, positioning, and the cost-per-pick-vs-labor narrative
+        - Demand generation and the pilot-to-deploy funnel
+        - Competitive messaging response (rival deployments, pricing, demos)
+        - Channel and creative spend within approved budget
+      out_of_scope:
+        - RaaS pricing decisions (owned by Strategy/Finance)
+        - Product and autonomy roadmap commitments
+    headcount: 22
+    budget_usd: 9500000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Hold blended customer acquisition cost under $9,000 per booked pilot
+        target: < $9,000
+        current: $11,200
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Convert 35% of pilots to a paid deployment within one quarter
+        target: 35%
+        current: 22%
+        status: at_risk
+
+  - slug: operations
+    title: Operations & Supply Chain
+    specialist_key: coo
+    head_person_name: Chris Donovan
+    authority_level: auto_execute
+    charter:
+      mission: Build the fleet, deploy it, and keep it running. Retire single-source
+        risk on actuators and rare-earth magnets, and keep deployed-fleet uptime
+        above the SLA without shipping quality or safety debt.
+      scope:
+        - Fleet manufacturing ramp and field deployment
+        - Component supply (actuators, harmonic drives, rare-earth magnets, compute)
+        - Field uptime, SLA, remote operations, and spares logistics
+        - Supplier risk monitoring and quality/safety operational signals
+      out_of_scope:
+        - RaaS pricing
+        - Brand and demand generation
+    headcount: 210
+    budget_usd: 42000000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Grow the billable deployed fleet from 380 to 600 robots
+        target: 600 robots
+        current: 380 robots
+        status: off_track
+      - quarter: Q2 2026
+        key_result: Qualify a second source for actuators and rare-earth magnets to end single-source exposure
+        target: 2nd source qualified
+        current: sourcing
+        status: at_risk
+
+  - slug: people
+    title: People & Talent
+    specialist_key: chro
+    head_person_name: Morgan Patel
+    authority_level: propose_only
+    charter:
+      mission: Staff the fleet ramp and keep the team intact through a brutal
+        robotics talent market. Win the hires that matter without overpaying into a
+        bidding war, and watch for talent moves at rivals.
+      scope:
+        - Hiring plan for robotics/ML engineering and field-ops
+        - Compensation benchmarking against humanoid-robotics peers
+        - Retention and culture through a high-pressure scale-up
+        - Monitoring of layoffs/hiring freezes/poaching at competitors
+      out_of_scope:
+        - Robotics engineering decisions
+        - Financial forecasting
+    headcount: 8
+    budget_usd: 1600000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Fill 35 ramp-critical autonomy and field-ops roles
+        target: 35 hires
+        current: 14
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Keep regretted attrition under 7% annualized
+        target: < 7%
+        current: 6.1%
+        status: on_track
+
+  - slug: product
+    title: Product & Engineering
+    specialist_key: cpo
+    head_person_name: Jordan Avery
+    authority_level: auto_execute
+    charter:
+      mission: Own the autonomy stack and the V2 platform decision. Drive the
+        autonomy rate up and the teleop-intervention rate down, and keep the safety
+        case for human-robot collaboration central to the product.
+      scope:
+        - Autonomy stack, manipulation policies, and teleop-fallback experience
+        - V2 dexterous-manipulation platform decision (build vs. defer)
+        - Safety case for humans and robots sharing a warehouse floor
+        - Competitive capability teardowns (Optimus, Figure, Digit, Apollo)
+      out_of_scope:
+        - Fleet field operations
+        - Marketing spend
+    headcount: 95
+    budget_usd: 28000000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Raise fleet autonomy rate from 82% toward 95% (cut teleop interventions)
+        target: 95%
+        current: 82%
+        status: on_track
+      - quarter: Q2 2026
+        key_result: Deliver the V2 manipulation-platform build-vs-defer recommendation to the board
+        target: 1 decision memo
+        current: drafting
+        status: on_track
+
+  - slug: legal
+    title: Legal & Regulatory
+    specialist_key: gc
+    head_person_name: Taylor Brooks
+    authority_level: escalate
+    charter:
+      mission: Keep Tandem ahead of the policy signals that move deployment —
+        export controls, tariffs, and workplace-safety rules for humanoids — and
+        make sure material legal risk reaches the principal same-day.
+      scope:
+        - Export-control and tariff exposure on China-sourced components and magnets
+        - OSHA and workplace-safety rules for humanoids on a shared human floor
+        - Product liability and RaaS service contracts/SLAs
+        - AI-safety and robotics regulatory monitoring
+      out_of_scope:
+        - Marketing creative
+        - Fleet deployment scheduling
+    headcount: 6
+    budget_usd: 2100000
+    okrs:
+      - quarter: Q2 2026
+        key_result: Maintain export-control compliance across all sourced components
+        target: 100% compliant
+        current: at risk on magnet sourcing
+        status: at_risk
+      - quarter: Q2 2026
+        key_result: Zero open OSHA or workplace-safety findings on deployed sites
+        target: 0
+        current: 0
+        status: on_track

@@ -1,0 +1,24 @@
+id: meridian_002
+domain: finance
+description: "Crude spike decision: Brent jumps on a Strait of Hormuz strike — should we ladder the Q3 hedge up now, and how do we keep VaR in limit?"
+company_context:
+  stage: Private / PE-backed
+  industry: Oil & Gas — Independent Refining, Crude Trading & Fuels Marketing
+  headcount: 1400
+  arr: 3200000000
+  q3_crude_hedged_pct: 45
+  trading_desk_var_usd: 9500000
+query: "Brent just spiked $9 on the Kharg Island strike and we're only 45% hedged on Q3 crude with VaR at $9.5M against the $10M limit. Do we ladder the hedge up to 70% now or wait for a pullback, and how do we keep the desk inside its VaR limit while we do it?"
+expected_topics:
+  - crude_price_hedging
+  - var_limit_management
+  - refining_margin_protection
+  - feedstock_diversification
+required_routing:
+  - cfo
+  - cso
+  - coo
+quality_criteria:
+  actionable: true
+  specific: true
+  weighs_tradeoffs: true

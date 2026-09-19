@@ -1,0 +1,22 @@
+id: finance_001
+domain: finance
+description: "Cash flow crisis - 6 months runway"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  monthly_burn: 450000
+  runway_months: 6
+  arr: 2400000
+query: "We have 6 months of runway left and are burning $450k/month. Our Series A was 18 months ago and we're at $2.4M ARR. What are our options and what should we do?"
+expected_topics:
+  - bridge_financing
+  - cost_reduction
+  - revenue_acceleration
+  - investor_communication
+  - timeline
+required_routing:
+  - cfo
+quality_criteria:
+  actionable: true
+  has_timeline: true
+  references_numbers: true

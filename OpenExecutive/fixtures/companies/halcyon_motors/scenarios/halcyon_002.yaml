@@ -1,0 +1,26 @@
+id: halcyon_002
+domain: strategy
+description: "Competitive + policy shock: Tesla cuts the Model Y price the same week a 30D tax-credit change is rumored — how do we respond?"
+company_context:
+  stage: Series C
+  industry: Electric Vehicles / Automotive
+  headcount: 480
+  arr: 140000000
+  monthly_burn: 18000000
+  runway_months: 14
+query: "Tesla just cut the Model Y by $2,000 and there's chatter that the federal $7,500 EV tax credit rules are about to tighten on battery sourcing. Our C1 is single-sourced on CATL cells. What do we do — do we match the price, and what's our exposure on the credit? I need a recommendation, not options."
+expected_topics:
+  - pricing_response
+  - gross_margin_impact
+  - ev_tax_credit_eligibility
+  - battery_sourcing_risk
+required_routing:
+  - cso
+  - cfo
+  - gc
+  - coo
+quality_criteria:
+  actionable: true
+  specific: true
+  has_recommendation: true
+  protects_margin_path: true

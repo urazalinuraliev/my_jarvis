@@ -1,0 +1,7 @@
+{
+  "section_id": "skills",
+  "title": "Skills",
+  "markdown": "**What it is:** Reusable how-to procedures the Executive can pull up on demand — checklists, playbooks, and templates for recurring tasks.\n\n**What it does:**\n\n- Browse the skills catalog with each skill's purpose and when to use it.\n- Search by keyword to find the right procedure.\n- Create your own skills with a name, category, when-to-use, and a Markdown body.\n- Update or delete your custom skills (built-in ones are protected).\n\n*Note: skills are indexed so the Executive can discover and apply the right one mid-task.*",
+  "mermaid": null,
+  "generated_at": "2026-06-06T00:00:00+00:00"
+}

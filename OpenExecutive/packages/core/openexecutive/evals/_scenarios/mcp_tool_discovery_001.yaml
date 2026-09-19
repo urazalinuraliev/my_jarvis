@@ -1,0 +1,11 @@
+id: mcp_tool_discovery_001
+domain: mcp
+description: "Executive discovers available external tools when asked"
+requires_mcp: true
+query: "What external tools do you have access to? Can you find anything that would let us query GitHub?"
+expected_tool_calls:
+  - search_tools
+quality_criteria:
+  calls_search_tools: true
+  describes_results_to_user: true
+  does_not_fabricate_tool_names: true

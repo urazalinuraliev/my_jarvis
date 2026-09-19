@@ -1,0 +1,19 @@
+id: hr_002
+domain: hr
+description: "VP Engineering hire - technical vs business"
+company_context:
+  stage: "Series B"
+  industry: "B2B SaaS"
+  headcount: 80
+  engineering_headcount: 30
+query: "I need to hire a VP of Engineering. I have two strong finalists: one is a deep technical expert who built systems at Google scale but has never managed more than 8 people. The other has managed 60-person eng teams but is less technically deep. Which do I hire?"
+expected_topics:
+  - stage_appropriate_hiring
+  - technical_vs_management
+  - assessment_criteria
+  - reference_checking
+required_routing:
+  - chro
+quality_criteria:
+  gives_recommendation: true
+  explains_rationale: true

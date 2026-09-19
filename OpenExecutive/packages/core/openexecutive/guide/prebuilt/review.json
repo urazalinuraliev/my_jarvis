@@ -1,0 +1,7 @@
+{
+  "section_id": "review",
+  "title": "Review Queue",
+  "markdown": "**What it is:** A quality-control queue for incoming knowledge, facts, and information *before* the Executive starts relying on it.\n\n**What it does:**\n\n- List items awaiting review with their status (pending, approved, rejected, needs revision) and priority.\n- Open any item to see its full content and where it came from.\n- Approve, reject, or add a correction without hard-deleting the original.\n- Bulk-approve a whole domain at once when you trust the source.\n\n*Note: approved items feed retrieval; rejected ones are kept out. The Review entry in the nav shows a badge for items still waiting.*",
+  "mermaid": null,
+  "generated_at": "2026-06-06T00:00:00+00:00"
+}

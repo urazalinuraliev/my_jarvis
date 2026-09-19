@@ -1,0 +1,45 @@
+{
+  "name": "open-executive-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Next.js 15 web UI for Open Executive — an AI-powered virtual executive team.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SenteLabsAI/OpenExecutive.git",
+    "directory": "packages/ui"
+  },
+  "homepage": "https://github.com/SenteLabsAI/OpenExecutive#readme",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "node --experimental-strip-types --test scripts/*.test.mjs"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^3.1.0",
+    "@tailwindcss/typography": "^0.5.20",
+    "@xyflow/react": "^12.11.6",
+    "mermaid": "^11.16.1",
+    "next": "^16.3.4",
+    "next-auth": "^5.0.0-beta.32",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.5.5",
+    "eslint": "^10",
+    "eslint-config-next": "^16.3.4",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7"
+  }
+}

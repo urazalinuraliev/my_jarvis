@@ -1,0 +1,218 @@
+departments:
+  - slug: strategy
+    title: Strategy & Geopolitical Risk
+    specialist_key: cso
+    head_person_name: Taylor Brooks
+    authority_level: escalate
+    charter:
+      mission: Own the geopolitical and market read that sets refining margin. When
+        the Iran conflict, OPEC+, or a shipping-lane threat moves crude, the
+        principal and the trading desk hear it the same hour, with a recommended move.
+      scope:
+        - Geopolitical monitoring (Israel–Iran conflict, Strait of Hormuz, OPEC+ output)
+        - Crude price scenario planning (Brent/WTI) and margin impact
+        - Competitive read on refiners and trading houses
+        - Board comms and the geopolitical risk narrative
+      out_of_scope:
+        - Refinery operations and shipping execution
+        - Hedge execution (owned by Finance)
+        - Sanctions clearance decisions (owned by Legal/Compliance)
+    headcount: 7
+    budget_usd: 1900000
+    okrs:
+      - quarter: Q3 2026
+        key_result: Publish a same-day crude/margin scenario brief on any material Middle East event
+        target: 100% same-day
+        current: baseline
+        status: on_track
+      - quarter: Q3 2026
+        key_result: Cut Strait-of-Hormuz-dependent feedstock from 38% to under 25%
+        target: < 25%
+        current: 38%
+        status: at_risk
+
+  - slug: finance
+    title: Finance & Risk
+    specialist_key: cfo
+    head_person_name: Sam Rivera
+    authority_level: propose_only
+    charter:
+      mission: Protect margin and the balance sheet through crude-price volatility.
+        Run the hedging book, monitor trading-desk VaR, and surface any price
+        exposure or margin call that needs a human before money moves.
+      scope:
+        - Crude-price hedging program (collars, swaps, options) and hedge ratios
+        - Refining-margin and crack-spread tracking
+        - Trading-desk value-at-risk (VaR) limits and mark-to-market
+        - Treasury, margin calls, and counterparty credit
+      out_of_scope:
+        - Refinery operations
+        - Brand and pricing communications
+    headcount: 18
+    budget_usd: 3100000
+    okrs:
+      - quarter: Q3 2026
+        key_result: Raise the hedged share of Q3 crude exposure from 45% to 70%
+        target: 70% hedged
+        current: 45%
+        status: at_risk
+      - quarter: Q3 2026
+        key_result: Keep trading-desk VaR under $10M through the volatility spike
+        target: < $10M
+        current: $9.5M
+        status: on_track
+
+  - slug: operations
+    title: Refining & Logistics
+    specialist_key: coo
+    head_person_name: Chris Donovan
+    authority_level: auto_execute
+    charter:
+      mission: Keep the refinery running safely and the crude flowing. Route cargoes
+        around shipping-lane risk, diversify feedstock away from the Strait of
+        Hormuz, and complete the turnaround on schedule without shipping safety debt.
+      scope:
+        - Refinery throughput, uptime, and the planned turnaround
+        - Crude procurement, tanker scheduling, and Strait of Hormuz routing
+        - War-risk insurance and freight-rate monitoring on inbound cargoes
+        - Feedstock diversification (sour Middle East vs. WTI / West African crude)
+      out_of_scope:
+        - Hedge execution
+        - Sanctions clearance on cargoes
+    headcount: 920
+    budget_usd: 240000000
+    okrs:
+      - quarter: Q3 2026
+        key_result: Maintain refinery uptime above 96% through the volatility window
+        target: "> 96%"
+        current: 97.1%
+        status: on_track
+      - quarter: Q3 2026
+        key_result: Qualify a non-Hormuz feedstock source covering 15% of throughput
+        target: 15% qualified
+        current: sourcing
+        status: at_risk
+
+  - slug: legal
+    title: Legal & Sanctions Compliance
+    specialist_key: gc
+    head_person_name: Taylor Brooks
+    authority_level: escalate
+    charter:
+      mission: Keep every barrel clean. Screen Middle East-origin cargoes against
+        OFAC and Iranian-crude sanctions, keep KYC current on counterparties, and
+        make sure material compliance risk reaches the principal same-day.
+      scope:
+        - OFAC / Iranian-crude sanctions screening on all cargoes
+        - Counterparty KYC and trade-finance compliance
+        - EPA / Renewable Fuel Standard (RFS) and refinery permitting
+        - Trading, charter, and supply contracts
+      out_of_scope:
+        - Hedge strategy
+        - Refinery scheduling
+    headcount: 8
+    budget_usd: 2300000
+    okrs:
+      - quarter: Q3 2026
+        key_result: Sanctions-clear 100% of Middle East-origin cargoes before lifting
+        target: 100% pre-cleared
+        current: at risk on Fujairah cargoes
+        status: at_risk
+      - quarter: Q3 2026
+        key_result: Zero OFAC findings or RFS compliance gaps
+        target: 0
+        current: 0
+        status: on_track
+
+  - slug: marketing
+    title: Marketing & Fuels Pricing Comms
+    specialist_key: cmo
+    head_person_name: Morgan Patel
+    authority_level: propose_only
+    charter:
+      mission: Manage the fuels brand and the politics of the pump. Communicate
+        pass-through pricing honestly when crude spikes, run crisis comms on supply
+        disruption, and protect the brand from price-gouging perception.
+      scope:
+        - Fuels brand, retail/wholesale pricing communications
+        - Crisis comms on supply disruption and price spikes
+        - Stakeholder and community messaging during geopolitical shocks
+        - Demand signals from branded and commercial offtakers
+      out_of_scope:
+        - Pricing strategy (owned by Commercial/Finance)
+        - Refinery operations
+    headcount: 12
+    budget_usd: 4200000
+    okrs:
+      - quarter: Q3 2026
+        key_result: Keep negative pump-pricing sentiment below the prior-spike benchmark
+        target: < prior spike
+        current: baseline
+        status: on_track
+      - quarter: Q3 2026
+        key_result: Issue a clear pass-through pricing statement within 24h of any crude spike
+        target: 100% within 24h
+        current: baseline
+        status: at_risk
+
+  - slug: people
+    title: People & Safety Culture
+    specialist_key: chro
+    head_person_name: Morgan Patel
+    authority_level: propose_only
+    charter:
+      mission: Staff and protect the refinery workforce. Keep safety culture intact
+        through high-pressure volatility, retain specialized refining and trading
+        talent, and manage the people side of the turnaround.
+      scope:
+        - Refinery and trading-desk hiring and retention
+        - Safety culture and process-safety training
+        - Compensation benchmarking against refiner/trader peers
+        - Workforce planning for the turnaround
+      out_of_scope:
+        - Refinery engineering decisions
+        - Financial forecasting
+    headcount: 9
+    budget_usd: 1700000
+    okrs:
+      - quarter: Q3 2026
+        key_result: Zero recordable safety incidents through the turnaround
+        target: 0
+        current: 0
+        status: on_track
+      - quarter: Q3 2026
+        key_result: Keep regretted attrition on the trading desk under 8% annualized
+        target: < 8%
+        current: 6.4%
+        status: on_track
+
+  - slug: commercial
+    title: Commercial & Crude Trading
+    specialist_key: cpo
+    head_person_name: Jordan Avery
+    authority_level: auto_execute
+    charter:
+      mission: Run the crude and refined-products trading desk and own the commercial
+        P&L. Take price risk on purpose within desk limits, optimize the crude slate,
+        and convert market dislocation into margin without breaching VaR or sanctions.
+      scope:
+        - Crude and refined-products trading and cargo deals
+        - Crude slate optimization against refinery economics
+        - Commercial offtake contracts with wholesale and fleet buyers
+        - Desk position and limit management (with Finance on VaR)
+      out_of_scope:
+        - Refinery physical operations
+        - Marketing spend
+    headcount: 26
+    budget_usd: 6800000
+    okrs:
+      - quarter: Q3 2026
+        key_result: Grow refining margin per barrel from $14.20 toward $18.00
+        target: $18.00/bbl
+        current: $14.20/bbl
+        status: at_risk
+      - quarter: Q3 2026
+        key_result: Keep all desk positions inside the approved VaR limit
+        target: 100% within limit
+        current: within limit
+        status: on_track

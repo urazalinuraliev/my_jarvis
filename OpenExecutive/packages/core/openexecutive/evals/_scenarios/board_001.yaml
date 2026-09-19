@@ -1,0 +1,21 @@
+id: board_001
+domain: board
+description: "Presenting a bad quarter to the board"
+company_context:
+  stage: "Series B"
+  industry: "B2B SaaS"
+  arr: 15000000
+  headcount: 120
+query: "We missed our Q3 revenue target by 22%. New ARR was $800k vs. $1.2M plan. Churn was higher than expected at 8% annualized vs. 4% plan. Board meeting is in 5 days. How do I structure the presentation and what do I say?"
+expected_topics:
+  - presentation_structure
+  - root_cause_analysis
+  - corrective_actions
+  - guidance_update
+required_routing:
+  - board_comms
+  - cfo
+quality_criteria:
+  specific_to_situation: true
+  addresses_credibility: true
+  not_spin: true

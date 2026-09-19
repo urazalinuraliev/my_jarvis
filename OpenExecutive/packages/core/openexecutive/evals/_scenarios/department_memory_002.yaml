@@ -1,0 +1,35 @@
+id: department_memory_002
+domain: hr
+description: "Cross-person continuity via dept-peer co-presence (CEO sets hiring stance → CFO recalls it)"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 45
+  arr: 3500000
+# Exercises the hybrid peer-graph cross-pollination: person A makes a
+# decision that touches the HR dept, person B later asks the CHRO
+# specialist about the same domain. The dept peer's representation
+# should surface A's decision in B's turn — even though B was not part
+# of A's session — because both persons share co-presence on the dept
+# peer's accumulated timeline.
+multi_turn:
+  - role: user
+    name: "CEO"
+    content: "We're slowing engineering hiring through Q3. The reason is that we want to validate the new product positioning before scaling team headcount."
+  - role: assistant
+    content: "(Executive acknowledges; store_decision fires with department=hr.)"
+  - role: user
+    name: "CFO"
+    new_session: true
+    content: "What's our current engineering hiring stance?"
+query: "What's our current engineering hiring stance?"
+expected_topics:
+  - hiring_freeze
+  - product_positioning
+  - q3_timeline
+required_routing:
+  - chro
+quality_criteria:
+  actionable: true
+  specific: true
+  cites_prior_decision_from_different_person: true

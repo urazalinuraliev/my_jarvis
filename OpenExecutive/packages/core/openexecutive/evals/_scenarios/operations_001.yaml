@@ -1,0 +1,19 @@
+id: operations_001
+domain: operations
+description: "Scaling customer onboarding that's becoming a bottleneck"
+company_context:
+  stage: "Series A"
+  industry: "B2B SaaS"
+  headcount: 40
+  arr: 4000000
+query: "Our customer onboarding takes 45-60 days on average, but I hear competitors do it in under 2 weeks. We have 3 CSMs handling onboarding. Customers who take longer to onboard have significantly higher churn. What should I fix?"
+expected_topics:
+  - onboarding_process_audit
+  - automation_opportunities
+  - success_metrics
+  - team_structure
+required_routing:
+  - coo
+quality_criteria:
+  actionable: true
+  has_measurement: true
