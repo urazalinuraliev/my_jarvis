@@ -8,7 +8,8 @@ import os
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,6 +52,9 @@ from openexecutive.api.routes import (
 )
 from openexecutive.integrations.google_chat import router as google_chat_router
 from openexecutive.integrations.telegram_bot import router as telegram_router
+
+if TYPE_CHECKING:
+    from openexecutive.knowledge.store import ChromaDBStore
 
 
 class _OELogFormatter(logging.Formatter):
@@ -145,14 +149,62 @@ _UNAUTHENTICATED_PATHS: frozenset[str] = frozenset(
 )
 
 
+def _open_knowledge_store(path: Path) -> ChromaDBStore | None:
+    """Open the ChromaDB store behind all RAG, or None when it can't be opened.
+
+    ``ChromaDBStore`` recovers from on-disk corruption itself. Any other
+    failure — a locked file, permissions, a full disk — is logged and the API
+    starts without a warm store. ``app.state.store`` must then stay *unset*
+    (not None): the routes' ``_get_store`` helpers build their own store only
+    when the attribute is absent, and retrieval opens one per call, so RAG
+    comes back once the problem clears. Until then retrieval — and the chat
+    turns that use it — fail; the rest of the API stays up.
+    """
+    from openexecutive.knowledge.store import ChromaDBStore
+
+    try:
+        return ChromaDBStore(persist_directory=path)
+    except Exception:
+        logging.getLogger("openexecutive").exception(
+            "ChromaDB store unavailable at %s — the API keeps running, but "
+            "knowledge retrieval (and so chat turns that use it) will fail until "
+            "the store can be opened",
+            path,
+        )
+        return None
+
+
+async def _seed_knowledge_store(store: ChromaDBStore, path: Path) -> None:
+    """Seed the builtin knowledge, skills and failure cases into *store*.
+
+    A failure leaves the store usable, only incomplete, so it is logged rather
+    than raised: e.g. the embedding model can't be downloaded offline, or a
+    corrupt index panics on its first add or query. That pyo3 PanicException
+    is a BaseException, hence the wider catch.
+    """
+    from openexecutive.knowledge.loader import seed_builtin_knowledge, seed_failures
+    from openexecutive.knowledge.skills_index import seed_builtin_skills
+    from openexecutive.knowledge.store import is_rust_panic
+
+    try:
+        await seed_builtin_knowledge(store=store)
+        await seed_builtin_skills(store=store)
+        await seed_failures(store=store)
+    except BaseException as exc:
+        if not isinstance(exc, Exception) and not is_rust_panic(exc):
+            raise
+        logging.getLogger("openexecutive").exception(
+            "Seeding the ChromaDB store at %s failed — built-in knowledge "
+            "may be incomplete until the next successful startup",
+            path,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from openexecutive.alerts.store import initialize_db as initialize_alerts_db
     from openexecutive.audit import AuditLogger, set_audit_logger
     from openexecutive.config import get_settings
-    from openexecutive.knowledge.loader import seed_builtin_knowledge, seed_failures
-    from openexecutive.knowledge.skills_index import seed_builtin_skills
-    from openexecutive.knowledge.store import ChromaDBStore, is_rust_panic
     from openexecutive.memory.episodic import initialize_db
 
     # Re-assert logging config AFTER uvicorn's own dictConfig, then announce.
@@ -164,57 +216,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     settings = get_settings()
 
-    # ChromaDB is the vector store backing all RAG. Its PersistentClient can
-    # fail for two distinct reasons, and we handle each differently:
-    #
-    #  (a) Corruption (pyo3 panic, "file is not a database", etc.) —
-    #      ChromaDBStore.__init__ moves the corrupt directory aside (never
-    #      deleting it) and re-initialises an empty store.
-    #
-    #  (b) Anything else (locked file, permission denied, disk full, missing
-    #      dependency) — the exception propagates. Rather than crash the whole
-    #      API, we log loudly and start without a warm store. app.state.store
-    #      is then left UNSET, not None: the routes' _get_store helpers only
-    #      build their own ChromaDBStore when the attribute is absent, and chat
-    #      retrieval builds its own store per call, so RAG recovers as soon as
-    #      the underlying problem clears. Until then retrieval raises, and so
-    #      do the chat turns that use it: this keeps the rest of the API up,
-    #      it does not make chat RAG-free.
-    try:
-        store: ChromaDBStore | None = ChromaDBStore(
-            persist_directory=settings.vector_store_path
-        )
-    except Exception:
-        logging.getLogger("openexecutive").exception(
-            "ChromaDB store unavailable at %s — the API keeps running, but "
-            "knowledge retrieval (and so chat turns that use it) will fail until "
-            "the store can be opened",
-            settings.vector_store_path,
-        )
-        store = None
-
+    store = _open_knowledge_store(settings.vector_store_path)
     if store is not None:
         app.state.store = store
         # Hand the warm store to the MCP server's resource/tool handlers, which
         # have no FastAPI Request to reach app.state through.
         mcp_server.set_store(store)
-
-        # A seeding failure (e.g. the embedding model can't be downloaded
-        # offline) leaves the store usable, just incomplete — keep it. A
-        # corrupt index can also first panic here, on the first add/query;
-        # the pyo3 PanicException is a BaseException, hence the wider catch.
-        try:
-            await seed_builtin_knowledge(store=store)
-            await seed_builtin_skills(store=store)
-            await seed_failures(store=store)
-        except BaseException as exc:
-            if not isinstance(exc, Exception) and not is_rust_panic(exc):
-                raise
-            logging.getLogger("openexecutive").exception(
-                "Seeding the ChromaDB store at %s failed — built-in knowledge "
-                "may be incomplete until the next successful startup",
-                settings.vector_store_path,
-            )
+        await _seed_knowledge_store(store, settings.vector_store_path)
 
     initialize_db()
     initialize_alerts_db()

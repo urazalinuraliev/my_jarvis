@@ -11,6 +11,7 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
 from openexecutive.config import get_settings
+from openexecutive.integrations import crewai_adapter
 from openexecutive.integrations.adapters import AgentResult
 
 logger = logging.getLogger(__name__)
@@ -35,14 +36,6 @@ def _chat_lock(chat_id: int) -> asyncio.Lock:
         lock = asyncio.Lock()
         _chat_locks[chat_id] = lock
     return lock
-
-
-# Chats with a CrewAI run (/strategy, /marketing) queued or in progress: at
-# most one per chat. The webhook checks and marks a chat with no await in
-# between, so two commands arriving together can't both start a multi-minute
-# pipeline. Deliberately not the chat lock above, which would stall the chat's
-# ordinary Executive turns for as long as a crew runs.
-_crew_runs_in_flight: set[int] = set()
 
 
 def _get_http_client() -> httpx.AsyncClient:
@@ -163,135 +156,6 @@ async def _send_quietly(token: str, chat_id: int, text: str) -> None:
         await send_message(token, chat_id, text)
     except Exception:
         logger.exception("Telegram: failed to send notice to chat_id=%s", chat_id)
-
-
-async def _run_crew_and_report(
-    *,
-    task: str,
-    context: str,
-    chat_id: int,
-    token: str,
-    sender_name: str,
-    message_id: int,
-) -> None:
-    """Run the CrewAI Instagram crew and deliver its report to the chat.
-
-    Invoked as a background task from the webhook so the Telegram webhook
-    never blocks. The webhook marked *chat_id* in ``_crew_runs_in_flight``
-    before queueing this; the mark is cleared when the run ends, however it
-    ends. Errors are surfaced as a user-facing notification instead of a
-    silent drop.
-    """
-    try:
-        session_id = f"telegram:{chat_id}"
-        from openexecutive.audit import log_event as audit_log
-
-        audit_log(
-            "tool_invocation",
-            f"CrewAI instagram crew triggered by {sender_name} (chat_id={chat_id}): {task[:160]}",
-            actor="telegram",
-            session_id=session_id,
-            details={
-                "channel": "telegram",
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "sender": sender_name,
-                "crew": "instagram",
-                "task": task,
-            },
-        )
-
-        try:
-            from openexecutive.integrations.crewai_adapter import get_crewai_adapter
-
-            adapter = get_crewai_adapter(crew="instagram")
-            result = await adapter.run(task=task, context=context)
-        except Exception:
-            logger.exception(
-                "Telegram: CrewAI instagram crew failed for chat_id=%s", chat_id
-            )
-            await _send_quietly(
-                token,
-                chat_id,
-                "⚠️ The Instagram content crew hit an error and couldn't "
-                "complete. Please try again in a moment, or run "
-                "`openexecutive crew --crew instagram --task ...` from the "
-                "terminal for full error output.",
-            )
-            return
-
-        try:
-            await _deliver_crew_report(result, task=task, chat_id=chat_id, token=token)
-        except Exception:
-            logger.exception(
-                "Telegram: failed to deliver CrewAI report for chat_id=%s", chat_id
-            )
-            await _send_quietly(
-                token,
-                chat_id,
-                "The crew finished but I couldn't deliver the report. "
-                "Please run `openexecutive crew --crew instagram --task ...` "
-                "from the terminal to see the output.",
-            )
-    finally:
-        _crew_runs_in_flight.discard(chat_id)
-
-
-async def _deliver_crew_report(
-    result: AgentResult, *, task: str, chat_id: int, token: str
-) -> None:
-    """Send a report preview, then the crew's Markdown files as documents.
-
-    Everything goes out as plain text: crew output is free-form Markdown
-    (``_`` and ``*`` in hashtags and emphasis) that Telegram's parse modes
-    reject, and ``send_message`` logs a rejected chunk instead of raising, so
-    formatted sends would silently drop the report. When no file can be
-    attached, the full report text is sent instead. Raises when Telegram
-    accepted none of it, so the caller can tell the user.
-    """
-    files = [
-        Path(art["path"])
-        for art in result.artifacts
-        if art.get("path") and Path(art["path"]).is_file()
-    ]
-    if files:
-        await send_message(token, chat_id, _format_crew_report(result, task=task, preview=True))
-        attached = 0
-        for path in files:
-            if await send_document(token, chat_id, path):
-                attached += 1
-        if attached:
-            return
-        logger.warning(
-            "Telegram: no crew report file could be attached for chat_id=%s; "
-            "sending the full text instead",
-            chat_id,
-        )
-    full_report = _format_crew_report(result, task=task, preview=False)
-    if await send_message(token, chat_id, full_report) is None:
-        raise RuntimeError("Telegram accepted no part of the crew report")
-
-
-# Characters of the crew's final output shown inline when the full report
-# also goes out as attached files.
-_CREW_REPORT_PREVIEW_CHARS = 1500
-
-
-def _format_crew_report(result: AgentResult, *, task: str, preview: bool) -> str:
-    """Plain-text report: a header, then the crew's final output.
-
-    With ``preview`` the output is clipped to a short excerpt, because the
-    full report follows as attached files.
-    """
-    text = (result.text or "").strip()
-    if preview and len(text) > _CREW_REPORT_PREVIEW_CHARS:
-        text = text[:_CREW_REPORT_PREVIEW_CHARS].rstrip() + " …"
-    parts = [f"Instagram content crew — topic: {task}"]
-    if text:
-        parts.append(text)
-    if preview:
-        parts.append("The full report files follow.")
-    return "\n\n".join(parts)
 
 
 async def _process_and_reply(
@@ -503,26 +367,61 @@ async def _process_and_reply(
 
 
 # Known bot commands that should be stripped before passing to the Executive.
-# /strategy and /marketing are intercepted separately (see _CREW_COMMAND_RE)
-# and dispatched to the CrewAI Instagram crew — they never reach the Executive.
+# (/strategy and /marketing never reach it — see _CREW_COMMAND_RE.)
 _COMMAND_RE = re.compile(r"^/(start|help|ask)(?:@\w+)?\s*", re.IGNORECASE)
 
-# Telegram commands that fan out to the integrated CrewAI Instagram crew.
-# Matched BEFORE _COMMAND_RE stripping so the task text is preserved verbatim.
+
+# --------------------------------------------------------------------------- #
+# CrewAI crew commands: /strategy and /marketing
+#
+# These run the Instagram content crew (integrations.crewai_adapter) instead of
+# the Executive. A crew takes minutes and Telegram drops a webhook that isn't
+# answered within seconds, so the webhook only acknowledges and queues the run
+# as a background task; the report follows as plain-text messages and files.
+# --------------------------------------------------------------------------- #
+
+# Matched before _COMMAND_RE stripping, so the topic text is kept verbatim.
 _CREW_COMMAND_RE = re.compile(
     r"^/(strategy|marketing)(?:@\w+)?\s*(?P<task>.*)",
     re.IGNORECASE,
 )
 
-# CrewAI runs can take a long time (multi-agent pipeline + LLM calls). Telegram
-# silently drops webhook requests that exceed 5s with no ack, so we always
-# return 200 immediately and do the real work in background_tasks. This ack
-# message is sent synchronously inside the webhook so the user sees "on it"
-# before the long poll.
+# Chats with a crew run queued or in progress — at most one per chat. The
+# webhook checks and marks a chat with no await in between, so two commands
+# arriving together can't both start a run. Deliberately not the chat lock,
+# which would stall the chat's ordinary Executive turns for the whole run.
+_crew_runs_in_flight: set[int] = set()
+
+# Characters of the crew's final output shown inline when the full report
+# follows as attached files.
+_CREW_REPORT_PREVIEW_CHARS = 1500
+
 _CREW_ACK_TEXT = (
     "🚀 Running the Instagram content crew for you — this runs a multi-agent "
     "pipeline (research → strategy → visuals → copywriting) and takes a couple "
     "of minutes. I'll post the final report here when it's done."
+)
+_CREW_MISSING_TOPIC_TEXT = (
+    "Please tell me what topic to research. Example: "
+    "/strategy summer campaign for our new product launch"
+)
+_CREW_UNAVAILABLE_TEXT = (
+    "The Instagram content crew isn't set up on this server, so I can't run it here."
+)
+_CREW_BUSY_TEXT = (
+    "An Instagram content crew is already running for this chat — "
+    "I'll post its report here when it finishes."
+)
+_CREW_FAILED_TEXT = (
+    "⚠️ The Instagram content crew hit an error and couldn't complete. "
+    "Please try again in a moment, or run "
+    "`openexecutive crew --crew instagram --task ...` from the terminal for "
+    "full error output."
+)
+_CREW_UNDELIVERED_TEXT = (
+    "The crew finished but I couldn't deliver the report. Please run "
+    "`openexecutive crew --crew instagram --task ...` from the terminal to see "
+    "the output."
 )
 
 
@@ -535,50 +434,119 @@ async def _handle_crew_command(
     message_id: int,
     background_tasks: BackgroundTasks,
 ) -> None:
-    """Validate a /strategy or /marketing command and queue its crew run."""
+    """Validate a crew command and queue its run, or say why it can't run."""
     if not task:
-        await _send_quietly(
-            token,
-            chat_id,
-            "Please tell me what topic to research. Example: "
-            "/strategy summer campaign for our new product launch",
-        )
+        await _send_quietly(token, chat_id, _CREW_MISSING_TOPIC_TEXT)
         return
-    from openexecutive.integrations.crewai_adapter import crew_unavailable_reason
-
-    unavailable = crew_unavailable_reason()
+    unavailable = crewai_adapter.crew_unavailable_reason()
     if unavailable is not None:
         logger.warning("Telegram: crew command but crews unavailable: %s", unavailable)
-        await _send_quietly(
-            token,
-            chat_id,
-            "The Instagram content crew isn't set up on this server, so I "
-            "can't run it here.",
-        )
+        await _send_quietly(token, chat_id, _CREW_UNAVAILABLE_TEXT)
         return
     if chat_id in _crew_runs_in_flight:
-        await _send_quietly(
-            token,
-            chat_id,
-            "An Instagram content crew is already running for this chat — "
-            "I'll post its report here when it finishes.",
-        )
+        await _send_quietly(token, chat_id, _CREW_BUSY_TEXT)
         return
-    # Mark before any await so a concurrent command sees it (see above).
-    _crew_runs_in_flight.add(chat_id)
+
+    _crew_runs_in_flight.add(chat_id)  # before any await — see _crew_runs_in_flight
     background_tasks.add_task(
         _run_crew_and_report,
         task=task,
-        context="",
         chat_id=chat_id,
         token=token,
         sender_name=sender_name,
         message_id=message_id,
     )
-    # Acknowledge immediately so the user sees the crew is running while
-    # Telegram waits. The real report lands as a follow-up message once the
-    # multi-agent pipeline finishes.
     await _send_quietly(token, chat_id, _CREW_ACK_TEXT)
+
+
+async def _run_crew_and_report(
+    *, task: str, chat_id: int, token: str, sender_name: str, message_id: int
+) -> None:
+    """Run the Instagram crew on *task* and deliver its report to the chat.
+
+    Clears the chat's in-flight mark however the run ends. Failures reach the
+    user as a short notice; the details go to the log.
+    """
+    try:
+        _audit_crew_trigger(
+            task=task, chat_id=chat_id, sender_name=sender_name, message_id=message_id
+        )
+        try:
+            adapter = crewai_adapter.get_crewai_adapter(crew="instagram")
+            result = await adapter.run(task=task)
+        except Exception:
+            logger.exception("Telegram: CrewAI instagram crew failed for chat_id=%s", chat_id)
+            await _send_quietly(token, chat_id, _CREW_FAILED_TEXT)
+            return
+        try:
+            await _deliver_crew_report(result, task=task, chat_id=chat_id, token=token)
+        except Exception:
+            logger.exception("Telegram: failed to deliver CrewAI report for chat_id=%s", chat_id)
+            await _send_quietly(token, chat_id, _CREW_UNDELIVERED_TEXT)
+    finally:
+        _crew_runs_in_flight.discard(chat_id)
+
+
+def _audit_crew_trigger(*, task: str, chat_id: int, sender_name: str, message_id: int) -> None:
+    from openexecutive.audit import log_event as audit_log
+
+    audit_log(
+        "tool_invocation",
+        f"CrewAI instagram crew triggered by {sender_name} (chat_id={chat_id}): {task[:160]}",
+        actor="telegram",
+        session_id=f"telegram:{chat_id}",
+        details={
+            "channel": "telegram",
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "sender": sender_name,
+            "crew": "instagram",
+            "task": task,
+        },
+    )
+
+
+async def _deliver_crew_report(
+    result: AgentResult, *, task: str, chat_id: int, token: str
+) -> None:
+    """Send a report preview, then the crew's Markdown files as documents.
+
+    Everything goes out as plain text: crew output is free-form Markdown
+    (``_`` and ``*`` in hashtags and emphasis) that Telegram's parse modes
+    reject, and ``send_message`` logs a rejected chunk instead of raising, so
+    a formatted send would silently lose the report. When no file can be
+    attached, the full text is sent instead. Raises when Telegram accepted
+    none of it, so the caller can tell the user.
+    """
+    files = [Path(file["path"]) for file in result.files]
+    files = [path for path in files if path.is_file()]
+    if files:
+        await send_message(token, chat_id, _format_crew_report(result, task=task, preview=True))
+        attached = [path for path in files if await send_document(token, chat_id, path)]
+        if attached:
+            return
+        logger.warning(
+            "Telegram: no crew report file could be attached for chat_id=%s; "
+            "sending the full text instead",
+            chat_id,
+        )
+    full_report = _format_crew_report(result, task=task, preview=False)
+    if await send_message(token, chat_id, full_report) is None:
+        raise RuntimeError("Telegram accepted no part of the crew report")
+
+
+def _format_crew_report(result: AgentResult, *, task: str, preview: bool) -> str:
+    """A header, then the crew's final output — clipped when *preview*, because
+    the full report follows as attached files."""
+    text = result.text.strip()
+    if preview and len(text) > _CREW_REPORT_PREVIEW_CHARS:
+        text = text[:_CREW_REPORT_PREVIEW_CHARS].rstrip() + " …"
+    parts = [f"Instagram content crew — topic: {task}"]
+    if text:
+        parts.append(text)
+    if preview:
+        parts.append("The full report files follow.")
+    return "\n\n".join(parts)
 
 
 @router.post("/webhook/telegram", status_code=200)
@@ -647,9 +615,6 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks) 
     text: str = message.get("text", "") or message.get("caption", "")
     text = text.strip()
 
-    # CrewAI commands (/strategy, /marketing) fan out to the Instagram crew
-    # instead of the Executive. Match BEFORE _COMMAND_RE stripping so the
-    # task text is preserved verbatim.
     crew_match = _CREW_COMMAND_RE.match(text)
     if crew_match is not None:
         await _handle_crew_command(

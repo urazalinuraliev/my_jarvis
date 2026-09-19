@@ -1,67 +1,43 @@
-"""Base classes for external-framework agent adapters.
+"""Framework-agnostic contract for external multi-agent workflows.
 
-An ``AgentAdapter`` translates a framework-specific agent graph into the
-uniform ``run(...) -> AgentResult`` contract that the Executive's skill-tool
-layer understands. This keeps the orchestration loop framework-agnostic: the
-Executive never imports crewai/langgraph directly, it only talks to adapters.
+An :class:`AgentAdapter` hides a third-party agent framework (CrewAI today)
+behind a single async ``run(...) -> AgentResult`` call, so the orchestrator,
+the CLI and the channel integrations never import the framework directly.
 """
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypedDict
+
+
+class OutputFile(TypedDict):
+    """A file a workflow run wrote.
+
+    Not to be confused with a workflow run's ``artifact`` — the Markdown
+    deliverable stored on the run itself, which is ``AgentResult.text``.
+    """
+
+    name: str
+    path: str
 
 
 @dataclass
 class AgentResult:
-    """Structured output returned by every adapter."""
+    """What one adapter run produced."""
 
+    # The final deliverable, as text.
     text: str = ""
-    artifacts: list[dict[str, Any]] = field(default_factory=list)
+    # Files the run wrote (absolute server paths — keep them out of chats).
+    files: list[OutputFile] = field(default_factory=list)
+    # Keys of the OE specialists whose domain the run covered (for auditing).
     consulted_specialists: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class AgentAdapter:
-    """Minimal interface every framework adapter implements."""
+class AgentAdapter(ABC):
+    """One external multi-agent workflow."""
 
-    name: str = "agent"
-    description: str = "Runs an external multi-agent workflow."
-
+    @abstractmethod
     async def run(self, *, task: str, context: str = "", **kwargs: Any) -> AgentResult:
-        raise NotImplementedError
-
-    def tool_spec(self) -> dict[str, Any]:
-        """Return the Anthropic tool schema advertising this adapter."""
-        return {
-            "name": self.name,
-            "description": self.description,
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "task": {
-                        "type": "string",
-                        "description": "The marketing or research task to delegate to the crew.",
-                    },
-                    "context": {
-                        "type": "string",
-                        "description": "Optional conversation/company context the crew should consider.",
-                    },
-                },
-                "required": ["task"],
-            },
-        }
-
-
-def make_result(
-    text: str,
-    *,
-    artifacts: list[dict[str, Any]] | None = None,
-    consulted_specialists: list[str] | None = None,
-    metadata: dict[str, Any] | None = None,
-) -> AgentResult:
-    return AgentResult(
-        text=text,
-        artifacts=artifacts or [],
-        consulted_specialists=consulted_specialists or [],
-        metadata=metadata or {},
-    )
+        """Run the workflow on *task*, with optional background *context*."""

@@ -19,7 +19,7 @@ from pathlib import Path
 
 # Mirrors `openexecutive.memory.episodic.DB_PATH` and the table set defined
 # across `memory/episodic.py`, `memory/session_store.py`, `alerts/store.py`,
-# `knowledge/review_store.py`, and `workflows/persistence.py`. Kept in sync by
+# `knowledge/review_schema.py`, and `workflows/persistence.py`. Kept in sync by
 # hand — this script intentionally does not import the package.
 DEFAULT_DB_PATH = Path("./episodic_memory.db")
 

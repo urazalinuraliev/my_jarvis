@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from openexecutive.knowledge import review_store as review_store_module
+from openexecutive.knowledge import review_schema
 from openexecutive.knowledge.review_store import (
     Annotation,
     ContentType,
@@ -377,7 +377,7 @@ def test_failed_rebuild_rolls_back_and_keeps_the_legacy_table(
     def broken_salvage(rows: object, now: str) -> list[tuple[object, ...]]:
         raise RuntimeError("salvage failed after the table was dropped")
 
-    monkeypatch.setattr(review_store_module, "_salvage_items", broken_salvage)
+    monkeypatch.setattr(review_schema, "_salvage_items", broken_salvage)
     with pytest.raises(RuntimeError):
         ReviewStore.initialize_db(db)
 
@@ -430,7 +430,7 @@ def test_legacy_annotations_without_an_items_table(tmp_path: Path) -> None:
         )
         conn.execute("INSERT INTO review_annotations (id, item_id, annotation) VALUES ('a', 'x', 'y')")
 
-    ReviewStore.initialize_db(db)  # used to fail on every start-up
+    ReviewStore.initialize_db(db)  # must not fail for want of review_items
     store = ReviewStore(db_path=db)
     assert store.list_items() == []
     assert store.list_annotations(active_only=False) == []  # its item is gone

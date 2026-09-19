@@ -20,7 +20,7 @@ import pytest
 from fastapi import BackgroundTasks
 
 from openexecutive.integrations import crewai_adapter, telegram_bot
-from openexecutive.integrations.adapters import AgentResult, make_result
+from openexecutive.integrations.adapters import AgentResult
 from openexecutive.integrations.crewai_adapter import (
     INSTAGRAM_OUTPUT_FILES,
     CrewAIAdapter,
@@ -163,10 +163,10 @@ async def test_instagram_run_writes_into_its_own_run_dir(fake_instagram_crew: di
     date.fromisoformat(inputs["current_date"])  # a real date, not ""
 
     assert result.text == "FINAL REPORT"
-    assert [a["name"] for a in result.artifacts] == list(INSTAGRAM_OUTPUT_FILES)
-    for art in result.artifacts:
-        assert Path(art["path"]).is_file()
-        assert Path(art["path"]).parent == run_dir
+    assert [f["name"] for f in result.files] == list(INSTAGRAM_OUTPUT_FILES)
+    for file in result.files:
+        assert Path(file["path"]).is_file()
+        assert Path(file["path"]).parent == run_dir
 
     # Model and key go to the crew in-process, never into os.environ.
     assert fake_instagram_crew["configured"] == {
@@ -213,7 +213,7 @@ async def test_default_model_not_sent_to_anthropic_requires_crewai_model(
 async def test_two_instagram_runs_do_not_share_files(fake_instagram_crew: dict[str, Any]) -> None:
     first = await CrewAIAdapter(crew="instagram").run(task="a")
     second = await CrewAIAdapter(crew="instagram").run(task="b")
-    assert first.artifacts[0]["path"] != second.artifacts[0]["path"]
+    assert first.files[0]["path"] != second.files[0]["path"]
 
 
 async def test_run_raises_clear_error_without_repo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -254,7 +254,7 @@ async def test_run_crew_reports_unavailable_without_server_paths(
     run_records: dict[str, list[Any]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        crewai_tools, "crew_unavailable_reason", lambda: "repo not found at /srv/secret"
+        crewai_adapter, "crew_unavailable_reason", lambda: "repo not found at /srv/secret"
     )
     out = json.loads(await crewai_tools.handle_run_crew({"crew": "instagram", "task": "x"}))
     assert "not installed" in out["error"]
@@ -266,13 +266,13 @@ async def test_run_crew_returns_at_once_and_completes_the_run_later(
 ) -> None:
     """A crew takes minutes — longer than a chat turn may last — so the tool
     starts it and returns; the run is completed when the crew ends."""
-    monkeypatch.setattr(crewai_tools, "crew_unavailable_reason", lambda: None)
+    monkeypatch.setattr(crewai_adapter, "crew_unavailable_reason", lambda: None)
     release = asyncio.Event()
 
     class _Adapter:
         async def run(self, *, task: str, context: str = "") -> AgentResult:
             await release.wait()
-            return make_result("the report")
+            return AgentResult(text="the report")
 
     monkeypatch.setattr(crewai_adapter, "get_crewai_adapter", lambda crew: _Adapter())
     out = json.loads(await crewai_tools.handle_run_crew({"crew": "instagram", "task": "x"}))
@@ -289,7 +289,7 @@ async def test_run_crew_returns_at_once_and_completes_the_run_later(
 async def test_run_crew_failure_is_recorded_not_returned(
     run_records: dict[str, list[Any]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(crewai_tools, "crew_unavailable_reason", lambda: None)
+    monkeypatch.setattr(crewai_adapter, "crew_unavailable_reason", lambda: None)
 
     class _Adapter:
         async def run(self, *, task: str, context: str = "") -> AgentResult:
@@ -308,7 +308,7 @@ async def test_cancelled_crew_run_is_marked_failed(
     run_records: dict[str, list[Any]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Server shutdown cancels the task: the run must not stay 'running' forever."""
-    monkeypatch.setattr(crewai_tools, "crew_unavailable_reason", lambda: None)
+    monkeypatch.setattr(crewai_adapter, "crew_unavailable_reason", lambda: None)
 
     class _Adapter:
         async def run(self, *, task: str, context: str = "") -> AgentResult:
@@ -348,7 +348,7 @@ def telegram_outbox(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[Any]]:
 
 
 def test_report_is_plain_text_and_preview_is_clipped() -> None:
-    result = make_result("#sotuv_voronkasi **bold** " + "y" * 5000)
+    result = AgentResult(text="#sotuv_voronkasi **bold** " + "y" * 5000)
     preview = telegram_bot._format_crew_report(result, task="launch", preview=True)
     full = telegram_bot._format_crew_report(result, task="launch", preview=False)
     assert preview.startswith("Instagram content crew — topic: launch")
@@ -358,7 +358,7 @@ def test_report_is_plain_text_and_preview_is_clipped() -> None:
 
 
 def test_report_keeps_text_mentioning_final_output() -> None:
-    result = make_result("Intro\n## Final Output\nCalendar")
+    result = AgentResult(text="Intro\n## Final Output\nCalendar")
     full = telegram_bot._format_crew_report(result, task="t", preview=False)
     assert "Intro" in full
 
@@ -366,7 +366,7 @@ def test_report_keeps_text_mentioning_final_output() -> None:
 async def test_report_attaches_files(telegram_outbox: dict[str, list[Any]], tmp_path: Path) -> None:
     report = tmp_path / "final-content-strategy.md"
     report.write_text("# report", encoding="utf-8")
-    result = make_result("summary", artifacts=[{"name": report.name, "path": str(report)}])
+    result = AgentResult(text="summary", files=[{"name": report.name, "path": str(report)}])
     await telegram_bot._deliver_crew_report(result, task="t", chat_id=1, token="tok")
     assert telegram_outbox["documents"] == [report.name]
     assert len(telegram_outbox["messages"]) == 1
@@ -382,7 +382,7 @@ async def test_report_falls_back_to_full_text_when_upload_fails(
         return False
 
     monkeypatch.setattr(telegram_bot, "send_document", failing_document)
-    result = make_result("z" * 3000, artifacts=[{"name": report.name, "path": str(report)}])
+    result = AgentResult(text="z" * 3000, files=[{"name": report.name, "path": str(report)}])
     await telegram_bot._deliver_crew_report(result, task="t", chat_id=1, token="tok")
     assert "z" * 3000 in telegram_outbox["messages"][-1]
 
@@ -409,7 +409,7 @@ async def test_report_raises_when_nothing_delivered(monkeypatch: pytest.MonkeyPa
 
     monkeypatch.setattr(telegram_bot, "send_message", rejected)
     with pytest.raises(RuntimeError):
-        await telegram_bot._deliver_crew_report(make_result("x"), task="t", chat_id=1, token="tok")
+        await telegram_bot._deliver_crew_report(AgentResult(text="x"), task="t", chat_id=1, token="tok")
 
 
 class _FakeRequest:
@@ -507,11 +507,11 @@ async def test_crew_run_leaves_chat_free_and_clears_its_mark(
             observed["marked"] = 104 in telegram_bot._crew_runs_in_flight
             if crew_fails:
                 raise RuntimeError("crew blew up")
-            return make_result("done")
+            return AgentResult(text="done")
 
     monkeypatch.setattr(crewai_adapter, "get_crewai_adapter", lambda crew: _Adapter())
     await telegram_bot._run_crew_and_report(
-        task="t", context="", chat_id=104, token="tok", sender_name="Ann", message_id=1
+        task="t", chat_id=104, token="tok", sender_name="Ann", message_id=1
     )
     assert observed == {"chat_lock_held": False, "marked": True}
     assert 104 not in telegram_bot._crew_runs_in_flight

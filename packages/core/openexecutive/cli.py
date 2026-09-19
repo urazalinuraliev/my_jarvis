@@ -6,6 +6,8 @@ import click
 from rich.console import Console
 from rich.prompt import Prompt
 
+from openexecutive.integrations.crewai_adapter import SUPPORTED_CREWS
+
 console = Console()
 
 
@@ -289,44 +291,41 @@ async def _consolidate_initiatives(apply_changes: bool) -> None:
 @click.option(
     "--crew",
     "crew_name",
-    type=click.Choice(["meeting_prep", "instagram"]),
+    type=click.Choice(SUPPORTED_CREWS),
     default="instagram",
     show_default=True,
     help="Which CrewAI crew to run.",
 )
-@click.option("--task", "task", required=True, help="Task/topic for the crew to work on.")
-@click.option("--context", "context", default="", help="Optional context (brand voice, audience, etc.).")
+@click.option("--task", required=True, help="Topic or task for the crew.")
+@click.option("--context", default="", help="Optional background (brand voice, audience, …).")
 def crew(crew_name: str, task: str, context: str) -> None:
-    """Run an integrated CrewAI multi-agent marketing workflow.
+    """Run a CrewAI marketing crew and print its deliverable.
 
-    Bridges the sibling Smart-Marketing-Assistant-Crew-AI repo into the
-    OpenExecutive CLI. The crew runs its full agent pipeline (research →
-    strategy → copywriting, etc.) and prints the deliverable.
+    Uses the sibling Smart-Marketing-Assistant-Crew-AI checkout; see
+    integrations.crewai_adapter.
     """
     asyncio.run(_crew(crew_name, task, context))
 
 
 async def _crew(crew_name: str, task: str, context: str) -> None:
-    from openexecutive.integrations.crewai_adapter import (
-        crew_unavailable_reason,
-        get_crewai_adapter,
-    )
+    from openexecutive.integrations import crewai_adapter
 
-    unavailable = crew_unavailable_reason()
+    unavailable = crewai_adapter.crew_unavailable_reason()
     if unavailable is not None:
         console.print(f"[red]{unavailable}[/red]")
         raise SystemExit(1)
 
-    adapter = get_crewai_adapter(crew=crew_name)
-    result = await adapter.run(task=task, context=context)
+    result = await crewai_adapter.get_crewai_adapter(crew=crew_name).run(task=task, context=context)
 
-    console.print(f"\n[bold green]{crew_name} crew[/bold green] — {len(result.artifacts)} artifact(s)\n")
+    console.print(
+        f"\n[bold green]{crew_name} crew[/bold green] — {len(result.files)} file(s)\n"
+    )
     if result.text:
         console.print(result.text)
-    if result.artifacts:
-        console.print("\n[dim]Artifacts:[/dim]")
-        for art in result.artifacts:
-            console.print(f"  - {art.get('name')} → {art.get('path')}")
+    if result.files:
+        console.print("\n[dim]Files:[/dim]")
+        for file in result.files:
+            console.print(f"  - {file['name']} → {file['path']}")
 
 
 @cli.command()

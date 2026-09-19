@@ -1,63 +1,63 @@
-"""CrewAI adapter: bridges the Smart-Marketing-Assistant-Crew-AI repo into OpenExecutive.
+"""Run the CrewAI marketing crews of the sibling Smart-Marketing-Assistant-Crew-AI repo.
 
-The CrewAI repo exposes two multi-agent crews:
+Two crews, both behind :class:`CrewAIAdapter` (the ``AgentAdapter`` contract):
 
-1. ``meeting_prep`` — research → industry analysis → strategy → briefing, driven
-   by ``src/main.py`` (procedural Python, Exa + Xquik search tools).
-2. ``instagram`` — market research → content strategy → visual creation →
-   copywriting → final report, driven by ``src/instagram/crew.py`` (CrewBase +
-   YAML config).
+* ``instagram`` — market research → content strategy → visuals → copywriting →
+  final report (``src/instagram/crew.py``). Its Markdown deliverables land in a
+  directory of their own under ``CREW_OUTPUT_DIR``, one per run.
+* ``meeting_prep`` — participant research and industry analysis → meeting
+  strategy → briefing (``src/agents.py`` and ``src/tasks.py``).
 
-Both are wrapped behind :class:`CrewAIAdapter`, which exposes the uniform
-``AgentAdapter.run(...)`` contract. The adapter is lazy: it only imports
-``crewai`` (and the sibling repo) when ``run`` is actually invoked, so the
-Executive package stays importable in environments where CrewAI is absent.
-
-The crew repo is found via the ``CREWAI_REPO_PATH`` process env var, falling
-back to a checkout next to this OpenExecutive checkout. Deployments without it
-(e.g. the Fly image) report the crews as unavailable instead of failing
-mid-run — see :func:`crew_unavailable_reason`.
+The crew repo is not a package dependency. It is located at run time — the
+``CREWAI_REPO_PATH`` process env var, else the directory next to the
+OpenExecutive checkout — and put on ``sys.path``. Where it or ``crewai`` is
+missing (e.g. the Fly image), :func:`crew_unavailable_reason` says why, so
+callers can hide or refuse the crews instead of failing mid-run. Nothing from
+the crew repo or ``crewai`` is imported until a run starts.
 """
 from __future__ import annotations
 
-import logging
 import os
 import sys
 import uuid
 from datetime import UTC, datetime
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
-from openexecutive.integrations.adapters import AgentAdapter, AgentResult, make_result
+from openexecutive.integrations.adapters import AgentAdapter, AgentResult, OutputFile
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from openexecutive.config import Settings
 
 SUPPORTED_CREWS: tuple[str, ...] = ("meeting_prep", "instagram")
 
-_CREW_REPO_NAME = "Smart-Marketing-Assistant-Crew-AI"
-
-# Markdown deliverables the Instagram crew writes into its run directory
-# (the ``{output_dir}/...`` output_file paths in the crew's crew.py).
+# Files the Instagram crew writes (its tasks' ``{output_dir}/…`` output_file).
 INSTAGRAM_OUTPUT_FILES: tuple[str, ...] = (
     "market_research.md",
     "visual-content.md",
     "final-content-strategy.md",
 )
 
+_CREW_REPO_NAME = "Smart-Marketing-Assistant-Crew-AI"
+
+
+# --------------------------------------------------------------------------- #
+# Locating the crew repo
+# --------------------------------------------------------------------------- #
+
 
 def _default_crew_repo() -> Path:
-    # .../OpenExecutive/packages/core/openexecutive/integrations/crewai_adapter.py
-    # → the directory that contains the OpenExecutive checkout.
+    # This file is .../OpenExecutive/packages/core/openexecutive/integrations/…;
+    # the crew repo is expected next to the OpenExecutive checkout.
     here = Path(__file__).resolve()
-    parents = here.parents
-    base = parents[5] if len(parents) > 5 else here.parent
-    return base / _CREW_REPO_NAME
+    checkout_parent = here.parents[5] if len(here.parents) > 5 else here.parent
+    return checkout_parent / _CREW_REPO_NAME
 
 
 def crew_repo_path() -> Path:
-    """Where the CrewAI repo lives: ``CREWAI_REPO_PATH`` or the sibling checkout."""
+    """Where the crew repo lives: ``CREWAI_REPO_PATH``, else next to this checkout."""
     configured = os.environ.get("CREWAI_REPO_PATH", "").strip()
     # A value starting with "#" is an inline .env comment that dotenv kept.
     if not configured or configured.startswith("#"):
@@ -68,9 +68,9 @@ def crew_repo_path() -> Path:
 def crew_unavailable_reason() -> str | None:
     """Why the crews cannot run in this process, or ``None`` when they can.
 
-    Cheap (a directory check and a module lookup, no imports), so it is safe
-    to call at import time to decide whether to advertise the chat tool. The
-    text names server paths: log it, don't show it to chat users.
+    Cheap — a few file checks and a module lookup, no imports — so it can
+    decide at import time whether to advertise the chat tool. The text names
+    server paths: log it, never show it to chat users.
     """
     repo = crew_repo_path()
     if not (repo / "src").is_dir():
@@ -80,8 +80,8 @@ def crew_unavailable_reason() -> str | None:
             "CREWAI_REPO_PATH."
         )
     if not (repo / "src" / "crew_llm.py").is_file():
-        # An unmodified upstream clone: its crews neither take their model from
-        # OE nor write into per-run directories.
+        # An unmodified upstream clone: its crews take no model from OE and
+        # don't write into per-run directories.
         return (
             f"The CrewAI crew repo at {repo} is missing src/crew_llm.py, which "
             "this integration needs."
@@ -95,18 +95,35 @@ def crew_integration_available() -> bool:
     return crew_unavailable_reason() is None
 
 
-def resolve_crew_model(
-    crewai_model: str | None, default_model: str, *, anthropic_direct: bool = True
-) -> str | None:
-    """The CrewAI model string for the crews' agents, or None if it must be configured.
+def _put_crew_repo_on_path() -> None:
+    """Make the crew repo's top-level modules (agents, tasks, instagram, …) importable."""
+    reason = crew_unavailable_reason()
+    if reason is not None:
+        raise RuntimeError(reason)
+    src_dir = str(crew_repo_path() / "src")
+    if src_dir not in sys.path:
+        # Appended, not prepended: the crew's module names are generic and
+        # must never shadow an installed package of the same name.
+        sys.path.append(src_dir)
 
-    An explicit ``CREWAI_MODEL`` wins. Otherwise a bare Claude ``DEFAULT_MODEL``
-    is reused on CrewAI's ``anthropic/`` provider — but only when OE itself
-    sends it to Anthropic directly (``anthropic_direct``); with OpenRouter on,
-    or the slug served by a local backend, calling Anthropic would bypass the
-    operator's routing and key. Any other ``DEFAULT_MODEL`` is an OpenRouter or
-    local slug that CrewAI would misroute (it reads a ``vendor/`` prefix as
-    "call that vendor directly"), so it is not guessed either.
+
+# --------------------------------------------------------------------------- #
+# Choosing the model
+# --------------------------------------------------------------------------- #
+
+
+def resolve_crew_model(
+    crewai_model: str | None, default_model: str, *, anthropic_direct: bool
+) -> str | None:
+    """The CrewAI model string for the crews' agents, or None when it must be set.
+
+    ``CREWAI_MODEL`` wins. Otherwise a Claude ``DEFAULT_MODEL`` is reused on
+    CrewAI's ``anthropic/`` provider, but only when OE itself sends it to
+    Anthropic directly (*anthropic_direct*): with OpenRouter enabled, or the
+    slug served locally, that would bypass the operator's routing and key.
+    Any other ``DEFAULT_MODEL`` is an OpenRouter or local slug that CrewAI
+    would misroute — it reads a ``vendor/`` prefix as "call that vendor" —
+    so it is not guessed.
     """
     if crewai_model:
         return crewai_model
@@ -115,45 +132,42 @@ def resolve_crew_model(
     return None
 
 
-def _provider_api_key(settings: Any, model: str) -> str | None:
-    """OE's key for the provider CrewAI will call for *model*, if OE has one."""
+def _default_model_goes_to_anthropic(settings: Settings) -> bool:
+    """Whether OE sends ``DEFAULT_MODEL`` straight to Anthropic.
+
+    Mirrors the routing order of ``providers.registry.get_provider``: a
+    ``LOCAL_MODELS`` entry stays local, and Claude goes through OpenRouter
+    whenever that is enabled.
+    """
+    local_models = settings.local_models if settings.local_models_enabled else []
+    return not settings.openrouter_enabled and settings.default_model not in local_models
+
+
+def _provider_api_key(settings: Settings, model: str) -> str | None:
+    """OE's key for the provider CrewAI will call for *model*, if OE holds one."""
     if model.startswith(("anthropic/", "claude-")):
-        return settings.anthropic_api_key  # type: ignore[no-any-return]
+        return settings.anthropic_api_key
     if model.startswith("openrouter/"):
-        return settings.openrouter_api_key  # type: ignore[no-any-return]
+        return settings.openrouter_api_key
     return None
 
 
-def _ensure_crew_repo_on_path() -> None:
-    """Make the crew repo's top-level modules (agents, tasks, instagram) importable."""
-    reason = crew_unavailable_reason()
-    if reason is not None:
-        raise RuntimeError(reason)
-    src_dir = str(crew_repo_path() / "src")
-    if src_dir not in sys.path:
-        # Appended rather than prepended: the crew's module names are generic,
-        # so they must never shadow an installed package of the same name.
-        sys.path.append(src_dir)
-
-
-def _configure_crew_llm() -> Any:
+def _configure_crew_llm() -> Settings:
     """Hand the crews their model and API key in-process; return the settings.
 
-    Passed through the crew repo's ``crew_llm.configure`` rather than exported
-    as environment variables, so the key never reaches child processes that
+    They go through the crew repo's ``crew_llm.configure`` rather than
+    environment variables, so the key never reaches child processes that
     inherit this process's environment.
     """
     import crew_llm  # type: ignore[import-not-found]
 
     from openexecutive.config import get_settings
-    from openexecutive.providers.registry import _local_models
 
     settings = get_settings()
-    anthropic_direct = not settings.openrouter_enabled and (
-        settings.default_model not in _local_models(settings)
-    )
     model = resolve_crew_model(
-        settings.crewai_model, settings.default_model, anthropic_direct=anthropic_direct
+        settings.crewai_model,
+        settings.default_model,
+        anthropic_direct=_default_model_goes_to_anthropic(settings),
     )
     if model is None:
         raise RuntimeError(
@@ -163,134 +177,138 @@ def _configure_crew_llm() -> Any:
             "string, e.g. anthropic/claude-sonnet-5 or openrouter/<model>."
         )
     crew_llm.configure(model=model, api_key=_provider_api_key(settings, model))
-    # CrewAI ships anonymous usage telemetry on by default; keep it off unless
-    # the operator opts in, matching the README's privacy promise.
+    # CrewAI sends anonymous usage telemetry by default; keep it off unless the
+    # operator opts in, in line with the README's privacy promise.
     os.environ.setdefault("CREWAI_DISABLE_TELEMETRY", "true")
     return settings
 
 
-def _new_run_dir(base: Path, crew: str) -> Path:
-    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    run_dir = base / f"{stamp}-{crew}-{uuid.uuid4().hex[:6]}"
-    run_dir.mkdir(parents=True)
-    return run_dir
+# --------------------------------------------------------------------------- #
+# Running the crews
+# --------------------------------------------------------------------------- #
 
 
 class CrewAIAdapter(AgentAdapter):
-    """Runs a named CrewAI crew and normalises its output."""
+    """Runs one of the :data:`SUPPORTED_CREWS`.
 
-    name = "run_crew"
-    description = (
-        "Delegate a multi-agent marketing workflow to the integrated CrewAI crew "
-        "(meeting prep research/briefing or Instagram content strategy). "
-        "Use for research synthesis, competitive analysis, content calendars, "
-        "or copywriting pipelines."
-    )
-
-    SUPPORTED_CREWS = SUPPORTED_CREWS
+    Both crews run through CrewAI's ``kickoff_async``, which executes the
+    blocking pipeline in a worker thread, so a multi-minute run never stalls
+    the event loop.
+    """
 
     def __init__(self, crew: str = "instagram") -> None:
-        if crew not in self.SUPPORTED_CREWS:
-            raise ValueError(
-                f"Unknown crew {crew!r}; expected one of {self.SUPPORTED_CREWS}"
-            )
+        if crew not in SUPPORTED_CREWS:
+            raise ValueError(f"Unknown crew {crew!r}; expected one of {SUPPORTED_CREWS}")
         self.crew = crew
 
     async def run(self, *, task: str, context: str = "", **kwargs: Any) -> AgentResult:
-        if self.crew == "meeting_prep":
-            return await self._run_meeting_prep(task=task, context=context, **kwargs)
-        return await self._run_instagram(task=task, context=context, **kwargs)
+        """Run the crew on *task*.
 
-    # ------------------------------------------------------------------
-    # meeting_prep crew (procedural Python)
-    # ------------------------------------------------------------------
-    async def _run_meeting_prep(
-        self, *, task: str, context: str, **kwargs: Any
-    ) -> AgentResult:
-        _ensure_crew_repo_on_path()
-        _configure_crew_llm()
-        from agents import MeetingPrepAgents  # type: ignore[import-not-found]
-        from crewai import Crew
-        from tasks import MeetingPrepTask  # type: ignore[import-not-found]
-
-        participants = kwargs.get("participants") or "the meeting participants"
-        meeting_context = context or task
-        objective = kwargs.get("objective") or "prepare for the meeting"
-
-        agent_factory = MeetingPrepAgents()
-        task_factory = MeetingPrepTask()
-
-        research_agent = agent_factory.research_agent()
-        industry_agent = agent_factory.industry_analysis_agent()
-        strategy_agent = agent_factory.meeting_strategy_agent()
-        briefing_agent = agent_factory.summary_and_briefing_agent()
-
-        research_task = task_factory.research_task(research_agent, participants, meeting_context)
-        industry_task = task_factory.industry_analysis_task(industry_agent, participants, meeting_context)
-        strategy_task = task_factory.meeting_strategy_task(strategy_agent, meeting_context, objective)
-        briefing_task = task_factory.summary_and_briefing_task(briefing_agent, meeting_context, objective)
-
-        # Enforce the pipeline order the original main.py documents:
-        # research + industry run in parallel, strategy depends on both,
-        # briefing depends on all three.
-        research_task.context = []
-        industry_task.context = []
-        strategy_task.context = [research_task, industry_task]
-        briefing_task.context = [research_task, industry_task, strategy_task]
-
-        crew = Crew(
-            agents=[research_agent, industry_agent, strategy_agent, briefing_agent],
-            tasks=[research_task, industry_task, strategy_task, briefing_task],
-            verbose=True,
-        )
-        # kickoff_async runs the (blocking) crew in a worker thread, so a
-        # multi-minute pipeline never stalls the API's event loop.
-        result = await crew.kickoff_async()
-        return make_result(
-            str(result),
-            consulted_specialists=["cso", "cmo"],
-            metadata={"crew": "meeting_prep", "participants": participants},
-        )
-
-    # ------------------------------------------------------------------
-    # instagram crew (CrewBase + YAML)
-    # ------------------------------------------------------------------
-    async def _run_instagram(
-        self, *, task: str, context: str, **kwargs: Any
-    ) -> AgentResult:
-        _ensure_crew_repo_on_path()
+        instagram: *context* describes the account (defaults to *task*);
+        ``current_date`` may be passed. meeting_prep: *context* is the meeting
+        context (defaults to *task*); ``participants`` and ``objective`` may be
+        passed.
+        """
+        _put_crew_repo_on_path()
         settings = _configure_crew_llm()
-        # CrewBase resolves config paths relative to the crew module's __file__,
-        # so the instagram package must be importable as-is.
-        from instagram.crew import InstagramCrew  # type: ignore[import-not-found]
-
-        run_dir = _new_run_dir(settings.crew_output_dir, "instagram")
-        # Inject runtime variables into the task descriptions via the same
-        # {variable} placeholders the YAML configs declare. output_dir feeds
-        # the tasks' output_file templates, so concurrent runs never
-        # overwrite each other's files.
-        runtime_vars = {
-            "current_date": kwargs.get("current_date")
+        if self.crew == "meeting_prep":
+            return await _run_meeting_prep(
+                meeting_context=context or task,
+                participants=kwargs.get("participants") or "the meeting participants",
+                objective=kwargs.get("objective") or "prepare for the meeting",
+            )
+        return await _run_instagram(
+            topic=task,
+            account_description=context or task,
+            current_date=kwargs.get("current_date")
             or datetime.now(ZoneInfo(settings.user_timezone)).date().isoformat(),
-            "instagram_description": context or task,
-            "topic_of_the_week": task,
-            "output_dir": run_dir.as_posix(),
-        }
-        result = await InstagramCrew().crew().kickoff_async(inputs=runtime_vars)
-
-        artifacts = [
-            {"name": name, "path": str(run_dir / name)}
-            for name in INSTAGRAM_OUTPUT_FILES
-            if (run_dir / name).is_file()
-        ]
-        return make_result(
-            str(result),
-            artifacts=artifacts,
-            consulted_specialists=["cmo"],
-            metadata={"crew": "instagram", "topic": task, "output_dir": str(run_dir)},
+            output_root=settings.crew_output_dir,
         )
 
 
 def get_crewai_adapter(crew: str = "instagram") -> CrewAIAdapter:
-    """Factory used by the skill-tool layer to build a CrewAI adapter."""
+    """Build the adapter for *crew* (the seam tests replace)."""
     return CrewAIAdapter(crew=crew)
+
+
+async def _run_instagram(
+    *, topic: str, account_description: str, current_date: str, output_root: Path
+) -> AgentResult:
+    # CrewBase resolves its YAML config relative to the crew module's file, so
+    # the instagram package is imported from the crew repo as-is.
+    from instagram.crew import InstagramCrew  # type: ignore[import-not-found]
+
+    run_dir = _new_run_dir(output_root, "instagram")
+    # These fill the {placeholders} in the crew's task YAML; output_dir feeds
+    # its output_file templates.
+    inputs = {
+        "current_date": current_date,
+        "instagram_description": account_description,
+        "topic_of_the_week": topic,
+        "output_dir": run_dir.as_posix(),
+    }
+    result = await InstagramCrew().crew().kickoff_async(inputs=inputs)
+
+    files = [
+        OutputFile(name=name, path=str(run_dir / name))
+        for name in INSTAGRAM_OUTPUT_FILES
+        if (run_dir / name).is_file()
+    ]
+    return AgentResult(
+        text=str(result),
+        files=files,
+        consulted_specialists=["cmo"],
+        metadata={"crew": "instagram", "topic": topic, "output_dir": str(run_dir)},
+    )
+
+
+async def _run_meeting_prep(
+    *, meeting_context: str, participants: str, objective: str
+) -> AgentResult:
+    crew = _build_meeting_prep_crew(
+        meeting_context=meeting_context, participants=participants, objective=objective
+    )
+    result = await crew.kickoff_async()
+    return AgentResult(
+        text=str(result),
+        consulted_specialists=["cso", "cmo"],
+        metadata={"crew": "meeting_prep", "participants": participants},
+    )
+
+
+def _build_meeting_prep_crew(*, meeting_context: str, participants: str, objective: str) -> Any:
+    """Research and industry analysis run in parallel; the strategy builds on
+    both, and the briefing on all three."""
+    from agents import MeetingPrepAgents  # type: ignore[import-not-found]
+    from crewai import Crew
+    from tasks import MeetingPrepTask  # type: ignore[import-not-found]
+
+    agent_factory = MeetingPrepAgents()
+    task_factory = MeetingPrepTask()
+    researcher = agent_factory.research_agent()
+    analyst = agent_factory.industry_analysis_agent()
+    strategist = agent_factory.meeting_strategy_agent()
+    briefer = agent_factory.summary_and_briefing_agent()
+
+    research = task_factory.research_task(researcher, participants, meeting_context)
+    industry = task_factory.industry_analysis_task(analyst, participants, meeting_context)
+    strategy = task_factory.meeting_strategy_task(strategist, meeting_context, objective)
+    briefing = task_factory.summary_and_briefing_task(briefer, meeting_context, objective)
+    research.context = []
+    industry.context = []
+    strategy.context = [research, industry]
+    briefing.context = [research, industry, strategy]
+
+    return Crew(
+        agents=[researcher, analyst, strategist, briefer],
+        tasks=[research, industry, strategy, briefing],
+        verbose=True,
+    )
+
+
+def _new_run_dir(root: Path, crew: str) -> Path:
+    """A fresh, uniquely named directory under *root* for one run's files."""
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    run_dir = root / f"{stamp}-{crew}-{uuid.uuid4().hex[:6]}"
+    run_dir.mkdir(parents=True)
+    return run_dir

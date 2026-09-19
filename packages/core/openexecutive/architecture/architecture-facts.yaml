@@ -1746,19 +1746,21 @@ review:
     can be promoted in priority. The Executive never sees pending items
     until an SME approves them.
   schema_upgrade: |
-    initialize_db rebuilds a review table whose shape is not current (all
-    columns present AND item_id / annotation_id the sole PK). One
+    The review tables' schema and value enums live in
+    openexecutive.knowledge.review_schema; ReviewStore.initialize_db calls
+    ensure_review_schema(conn), which rebuilds a table whose shape is not
+    current (every canonical column with the same (notnull, pk) as the DDL —
+    _column_shape — and item_id / annotation_id the sole PK). One
     transaction, foreign_keys OFF (DROP would otherwise cascade): CREATE
-    <table>_legacy_<stamp> AS SELECT *, DROP, CREATE canonical, then the
-    old rows are normalized in Python (_salvage_item / _salvage_annotations):
+    <table>_legacy_<stamp> AS SELECT *, DROP, CREATE canonical, then the old
+    rows are normalized in Python (_salvage_item / _salvage_annotations):
     item_id <-> domain/filename recovered from each other, first non-empty
     of annotation_id|id and correction|annotation, non-pending status wins
-    dedup, invalid enums → defaults, orphaned annotations stay in the
-    backup only. review_items is created first when only annotations are
-    legacy. "Current" = every canonical column with the same (notnull, pk)
-    as the DDL (_column_shape). Errors roll back.
-    get_rejected_filenames / list_annotations call _ensure_schema (once
-    per process per DB file) because retrieval can run before the
+    dedup, invalid enums → defaults, orphaned annotations stay in the backup
+    only. review_items is created first when only annotations are legacy.
+    Errors roll back. review_store re-exports ReviewStatus / ContentType /
+    Priority. get_rejected_filenames / list_annotations call _ensure_schema
+    (once per process per DB file) because retrieval can run before the
     lifespan's init.
 
 workflows:
