@@ -1,32 +1,31 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
-from instagram.tools.search import SearchTools
-from crewai import LLM
 
-# Uncomment the following line to use an example of a custom tool
-# from instagram.tools.custom_tool import MyCustomTool
+from crew_llm import build_llm
 
-# Check our tools documentations for more information on how to use them
-# from crewai_tools import SerperDevTool
+# Every task that writes a file uses the {output_dir} input, so each run gets
+# its own directory instead of overwriting files in the working directory.
+# Pass output_dir alongside the other inputs, e.g. kickoff(inputs={..., "output_dir": "runs/today"}).
+
 
 @CrewBase
 class InstagramCrew():
     """Instagram crew"""
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
-    
+
     @agent
     def market_researcher(self) -> Agent:
         return Agent(
             config=self.agents_config['market_researcher'],
             tools=[],
             verbose=True,
-            llm = LLM(model="anthropic/claude-sonnet-4-6")
+            llm=build_llm(),
         )
-        
+
     @agent
     def content_strategist(self) -> Agent:
-        return Agent(config=self.agents_config["content_strategist"], verbose=True)
+        return Agent(config=self.agents_config["content_strategist"], verbose=True, llm=build_llm())
 
     @agent
     def visual_creator(self) -> Agent:
@@ -34,19 +33,20 @@ class InstagramCrew():
             config=self.agents_config["visual_creator"],
             verbose=True,
             allow_delegation=False,
+            llm=build_llm(),
         )
 
     @agent
     def copywriter(self) -> Agent:
-        return Agent(config=self.agents_config["copywriter"], verbose=True)
+        return Agent(config=self.agents_config["copywriter"], verbose=True, llm=build_llm())
 
-    
+
     @task
     def market_research(self) -> Task:
         return Task(
             config=self.tasks_config["market_research"],
             agent=self.market_researcher(),
-            output_file="market_research.md",
+            output_file="{output_dir}/market_research.md",
         )
 
     @task
@@ -61,7 +61,7 @@ class InstagramCrew():
         return Task(
             config=self.tasks_config["visual_content_creation"],
             agent=self.visual_creator(),
-            output_file="visual-content.md",
+            output_file="{output_dir}/visual-content.md",
         )
 
     @task
@@ -76,7 +76,7 @@ class InstagramCrew():
         return Task(
             config=self.tasks_config["report_final_content_strategy"],
             agent=self.content_strategist(),
-            output_file="final-content-strategy.md",
+            output_file="{output_dir}/final-content-strategy.md",
         )
 
     @crew

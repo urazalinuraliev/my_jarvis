@@ -1,11 +1,11 @@
+import ast
 import os
 from json import loads
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from exa_py import Exa
-from langchain.agents import tool
+from crewai.tools import tool
 
 
 XQUIK_SEARCH_URL = "https://xquik.com/api/v1/x/tweets/search"
@@ -62,6 +62,28 @@ def _tweet_line(tweet):
     return f"{prefix}{text}{suffix}".strip()
 
 
+def _parse_ids(value):
+    """Parse the ids argument ("['a', 'b']", '["a"]', or a bare id) without eval."""
+    if isinstance(value, (list, tuple)):
+        items = value
+    else:
+        text = _as_text(value)
+        if not text:
+            return []
+        try:
+            items = loads(text)
+        except ValueError:
+            try:
+                items = ast.literal_eval(text)
+            except (ValueError, SyntaxError):
+                items = [text]
+    if isinstance(items, str):
+        items = [items]
+    if not isinstance(items, (list, tuple)):
+        return []
+    return [str(item).strip() for item in items if str(item).strip()]
+
+
 class XquikSearchToolSet():
 
     @tool
@@ -116,7 +138,10 @@ class ExaSearchToolSet():
         Returns:
             list: A list of search results.
         """
-        return ExaSearchToolSet._exa().search(f"{query}", use_autoprompt=True, num_results=3)
+        exa, error = ExaSearchToolSet._exa()
+        if error:
+            return error
+        return exa.search(f"{query}", use_autoprompt=True, num_results=3)
     
     @tool
     def find_similar(url: str):
@@ -130,7 +155,10 @@ class ExaSearchToolSet():
         Returns:
             list: A list of similar search results.
         """
-        return ExaSearchToolSet._exa().find_similar(url, num_results=3)
+        exa, error = ExaSearchToolSet._exa()
+        if error:
+            return error
+        return exa.find_similar(url, num_results=3)
     
     @tool
     def get_contents(ids: str):
@@ -144,14 +172,15 @@ class ExaSearchToolSet():
         Returns:
             str: The content of the webpages concatenated and truncated to 1000 characters each.
         """
-        # print("ids from params:",ids)
-        # Evaluate the string representation of the list of IDs
-        ids = eval(ids)
-        # print("eval ids:",ids)
-        
+        exa, error = ExaSearchToolSet._exa()
+        if error:
+            return error
+        ids = _parse_ids(ids)
+        if not ids:
+            return "Provide the result ids from 'search' as a list, e.g. [\"id1\", \"id2\"]."
+
         # Get the contents of the webpages
-        contents = str(ExaSearchToolSet._exa().get_contents(ids))
-        print("contents:",contents)
+        contents = str(exa.get_contents(ids))
 
         # Split the contents by 'URL:' and truncate each content to 1000 characters
         contents = contents.split("URL:")
@@ -167,9 +196,16 @@ class ExaSearchToolSet():
         ]
 
     def _exa():
-        """Initialize and return an instance of the Exa class.
-        
-        Returns:
-            Exa: An instance of the Exa class initialized with the API key from environment variables.
+        """Return (Exa client, None), or (None, setup message) when Exa is unavailable.
+
+        The message goes back to the agent as the tool result, so a missing key or
+        package degrades the research step instead of crashing the whole crew.
         """
-        return Exa(api_key=os.environ.get('EXA_API_KEY'))
+        api_key = os.environ.get('EXA_API_KEY')
+        if not api_key:
+            return None, "Set EXA_API_KEY before using the Exa search tools."
+        try:
+            from exa_py import Exa
+        except ImportError:
+            return None, "Install exa-py (pip install exa_py) to use the Exa search tools."
+        return Exa(api_key=api_key), None
