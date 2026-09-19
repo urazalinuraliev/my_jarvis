@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-import shutil
+import os
+import threading
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,43 +11,57 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def _is_corruption(exc: BaseException) -> bool:
-    """Return True when *exc* is a ChromaDB storage-corruption signal.
+# Error-message signatures of a corrupt store. Deliberately specific: a Rust
+# panic as such is NOT one (see is_rust_panic) — e.g. an on-disk format this
+# chromadb version can't read would panic too, and moving that store aside
+# would hide good data behind an empty one.
+_CORRUPTION_MARKERS: tuple[str, ...] = (
+    # pyo3 panic from a corrupt HNSW index / chroma.sqlite3:
+    # "range start index N out of range for slice of length M"
+    "out of range for slice",
+    "range start index",
+    # SQLite
+    "file is not a database",
+    "database disk image is malformed",
+    "database is corrupt",
+    # hnswlib: "Index seems to be corrupted or unsupported"
+    "corrupted",
+)
 
-    ChromaDB's Rust bindings (pyo3) raise ``pyo3_runtime.PanicException``
-    with messages like "range start index N out of range for slice of length M"
-    when the on-disk HNSW index or ``chroma.sqlite3`` is corrupted. SQLite
-    itself raises ``sqlite3.DatabaseError`` / ``DatabaseError: file is not a
-    database`` for the same class of problem. We treat all of these as
-    corruption so the caller can wipe and re-initialise.
+
+# See ChromaDBStore._open_client.
+_OPEN_LOCK = threading.Lock()
+
+
+def is_rust_panic(exc: BaseException) -> bool:
+    """True for ``pyo3_runtime.PanicException`` from chromadb's Rust bindings.
+
+    It derives from BaseException, so ``except Exception`` does not catch it.
+    """
+    return type(exc).__name__ == "PanicException"
+
+
+def _is_corruption(exc: BaseException) -> bool:
+    """Return True when *exc* carries a storage-corruption signature.
+
+    Everything else — a locked file, a second client with different settings,
+    permissions, a full disk, an unrecognised panic — is NOT corruption:
+    moving the store aside would not fix it and would hide the operator's
+    data behind a fresh empty store.
     """
     text = f"{type(exc).__name__}: {exc}".lower()
-    return any(
-        marker in text
-        for marker in (
-            "panicexception",
-            "pyo3",
-            "out of range for slice",
-            "range start index",
-            "file is not a database",
-            "database disk image is malformed",
-            "corrupted",
-            "database is corrupt",
-        )
-    )
+    return any(marker in text for marker in _CORRUPTION_MARKERS)
 
 
-def _recover_chroma_path(persist_directory: str | Path) -> Path:
-    """Back up a corrupt ChromaDB directory and return a fresh path.
+def _move_corrupt_store(persist_directory: str | Path) -> Path:
+    """Rename a corrupt ChromaDB directory aside so a fresh store can be created.
 
-    Called when PersistentClient initialization fails with a corruption
-    signal. Moves the bad directory aside (so the operator can inspect it)
-    and returns the *original* path — the next PersistentClient call will
-    create a fresh empty store there.
+    ``os.rename`` within the same parent is atomic: it either moves the whole
+    directory or fails leaving it untouched. (``shutil.move`` would fall back
+    to copy-then-delete, which on Windows deletes every closable file of the
+    live store before failing on a locked one.) Raises ``OSError`` on failure.
     """
     path = Path(persist_directory)
-    if not path.exists():
-        return path
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     backup = path.with_name(f"{path.name}.corrupt-{stamp}")
     # If a stale backup already exists for this second, append a counter.
@@ -54,24 +69,49 @@ def _recover_chroma_path(persist_directory: str | Path) -> Path:
     while backup.exists():
         backup = path.with_name(f"{path.name}.corrupt-{stamp}-{n}")
         n += 1
+    os.rename(path, backup)
+    return backup
+
+
+def _cached_chroma_systems(persist_directory: str | Path) -> dict[str, Any]:
+    """chromadb's cached System objects for *persist_directory*, by cache key."""
     try:
-        shutil.move(str(path), str(backup))
-        logger.warning(
-            "ChromaDB: moved corrupt store %s → %s; starting fresh",
-            path,
-            backup,
-        )
-    except Exception:
-        # If the move fails (e.g. permissions), fall back to a wipe so we
-        # don't loop forever on the same bad path.
-        logger.exception(
-            "ChromaDB: could not back up corrupt store %s; wiping in place", path
-        )
+        from chromadb.api.shared_system_client import SharedSystemClient
+    except ImportError:
+        return {}
+    target = Path(persist_directory).resolve()
+    found = {}
+    for key, system in list(SharedSystemClient._identifier_to_system.items()):
         try:
-            shutil.rmtree(str(path), ignore_errors=True)
+            if Path(key).resolve() == target:
+                found[key] = system
+        except (OSError, ValueError):
+            continue
+    return found
+
+
+def _discard_failed_chroma_systems(
+    persist_directory: str | Path, cached_before: dict[str, Any]
+) -> None:
+    """Stop and uncache the System a failed ``PersistentClient`` call left behind.
+
+    chromadb caches one System per path and registers it *before* starting
+    it, so a failed start leaves a half-started System (possibly still holding
+    files open) that every later client for the same path would reuse — the
+    store could then never be reopened in-process. Only entries that did not
+    exist before the failed call are touched, so a working client for the
+    same path elsewhere in the process keeps its System.
+    """
+    from chromadb.api.shared_system_client import SharedSystemClient
+
+    for key, system in _cached_chroma_systems(persist_directory).items():
+        if key in cached_before:
+            continue
+        SharedSystemClient._identifier_to_system.pop(key, None)
+        try:
+            system.stop()
         except Exception:
-            logger.exception("ChromaDB: rmtree of %s also failed", path)
-    return path
+            logger.debug("ChromaDB: stopping a failed System raised", exc_info=True)
 
 
 class KnowledgeStore(ABC):
@@ -119,53 +159,61 @@ class ChromaDBStore(KnowledgeStore):
     NOTION_COLLECTION = "notion_wiki"
 
     def __init__(self, persist_directory: str | Path = "./chroma_db") -> None:
+        path = str(persist_directory)
+        # ``BaseException``: a pyo3 PanicException derives from it, so
+        # ``except Exception`` would let a corruption panic crash startup.
+        try:
+            self._client = self._open_client(path)
+            return
+        except BaseException as exc:
+            if not _is_corruption(exc):
+                if is_rust_panic(exc):
+                    # Unrecognised panic: leave the store where it is, but
+                    # surface it as an Exception so callers' degraded-mode
+                    # handlers (``except Exception``) can catch it.
+                    raise RuntimeError(
+                        f"ChromaDB panicked opening {path}: {exc}"
+                    ) from exc
+                raise
+            logger.warning(
+                "ChromaDB: store at %s looks corrupt (%s: %s); moving it aside "
+                "and starting fresh",
+                path,
+                type(exc).__name__,
+                exc,
+            )
+
+        backup = _move_corrupt_store(path)
+        logger.warning("ChromaDB: moved corrupt store %s → %s", path, backup)
+        try:
+            self._client = self._open_client(path)
+        except BaseException as exc:
+            if not is_rust_panic(exc):
+                raise
+            raise RuntimeError(
+                f"ChromaDB still failing at {path} after moving the corrupt "
+                f"store to {backup}: {type(exc).__name__}: {exc}"
+            ) from exc
+
+    @staticmethod
+    def _open_client(path: str) -> Any:
+        """``PersistentClient`` that never leaves a broken System in chromadb's cache.
+
+        Serialized per process: retrieval opens stores from worker threads, and
+        a concurrent open could otherwise pick up (then discard) the System
+        another thread is still starting.
+        """
         import chromadb
         from chromadb.config import Settings
 
-        path = str(persist_directory)
-        # ChromaDB's Rust bindings (pyo3) can raise
-        # ``pyo3_runtime.PanicException: range start index N out of range for
-        # slice of length M`` when the on-disk HNSW index or chroma.sqlite3
-        # is corrupted. SQLite itself raises ``DatabaseError: file is not a
-        # database`` for the same class of problem.
-        #
-        # We do NOT rely solely on string-matching the exception message to
-        # decide whether to recover: Rust panics can surface as exception
-        # types whose text we don't predict, and a missed match would let
-        # the panic crash startup. Instead, ANY exception on attempt 0 is
-        # treated as a potential storage failure — back up the directory,
-        # wipe it, and retry once. A second failure propagates so the
-        # lifespan's degradation handler can log + continue without RAG.
-        for attempt in range(2):
+        with _OPEN_LOCK:
+            cached_before = _cached_chroma_systems(path)
             try:
-                self._client = chromadb.PersistentClient(
-                    path=path,
-                    settings=Settings(anonymized_telemetry=False),
+                return chromadb.PersistentClient(
+                    path=path, settings=Settings(anonymized_telemetry=False)
                 )
-                return
-            except Exception as exc:
-                if attempt == 0:
-                    # Broad catch: any failure on first init is treated as a
-                    # storage problem. Back up the bad directory (so the
-                    # operator can inspect it) and retry with a fresh store.
-                    if _is_corruption(exc):
-                        logger.warning(
-                            "ChromaDB: corruption detected at %s (%s: %s); "
-                            "backing up and re-initialising",
-                            path,
-                            type(exc).__name__,
-                            exc,
-                        )
-                    else:
-                        logger.warning(
-                            "ChromaDB: PersistentClient failed at %s (%s: %s); "
-                            "backing up directory and re-initialising",
-                            path,
-                            type(exc).__name__,
-                            exc,
-                        )
-                    _recover_chroma_path(path)
-                    continue
+            except BaseException:
+                _discard_failed_chroma_systems(path, cached_before)
                 raise
 
     def _get_or_create_collection(self, name: str) -> Any:

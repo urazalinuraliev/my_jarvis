@@ -313,6 +313,8 @@ class Settings(BaseSettings):
             self.vector_store_path = base / self.vector_store_path
         if not self.company_profile_path.is_absolute():
             self.company_profile_path = base / self.company_profile_path
+        if not self.crew_output_dir.is_absolute():
+            self.crew_output_dir = base / self.crew_output_dir
         return self
 
     slack_bot_token: str | None = Field(None, alias="SLACK_BOT_TOKEN")
@@ -349,6 +351,25 @@ class Settings(BaseSettings):
     # env vars have been removed — manage access via the /people UI.
     telegram_bot_token: str | None = Field(None, alias="TELEGRAM_BOT_TOKEN")
     telegram_webhook_secret: str | None = Field(None, alias="TELEGRAM_WEBHOOK_SECRET")
+
+    # CrewAI marketing crews (integrations/crewai_adapter.py). The crew code
+    # lives in the sibling Smart-Marketing-Assistant-Crew-AI checkout, located
+    # via the CREWAI_REPO_PATH *process* env var (read at import time, like
+    # BACKEND_SHARED_SECRET). CREWAI_MODEL is a CrewAI model string; unset means
+    # DEFAULT_MODEL on the Anthropic provider. Each run writes its Markdown
+    # deliverables to its own subdirectory of CREW_OUTPUT_DIR.
+    crewai_model: str | None = Field(None, alias="CREWAI_MODEL")
+    crew_output_dir: Path = Field(_ROOT / "crew_runs", alias="CREW_OUTPUT_DIR")
+
+    @field_validator("crewai_model", mode="before")
+    @classmethod
+    def _blank_crewai_model(cls, v: Any) -> Any:
+        return None if _blank_or_comment(v) else v
+
+    @field_validator("crew_output_dir", mode="before")
+    @classmethod
+    def _blank_crew_output_dir(cls, v: Any) -> Any:
+        return _ROOT / "crew_runs" if _blank_or_comment(v) else v
 
     discord_bot_token: str | None = Field(None, alias="DISCORD_BOT_TOKEN")
     discord_app_id: str | None = Field(None, alias="DISCORD_APP_ID")

@@ -149,6 +149,14 @@ See `.env.example`. Required: `ANTHROPIC_API_KEY`. Optional integrations: `SLACK
 > `env -u BACKEND_SHARED_SECRET uv run pytest tests/unit/` — to match CI (CI
 > does not set it).
 
+> **Local data gotcha:** with a repo-root `.env` present, `config._ROOT` is
+> the repo root, so the unit suite run from `packages/core` writes into your
+> REAL `chroma_db/` and `packages/core/episodic_memory.db` (audit rows,
+> scheduled actions, workflow runs, review registrations). Run it from a copy
+> of the tree that has no `.env` above it (as CI does), or point
+> `VECTOR_STORE_PATH` / `EPISODIC_DB_PATH` / `COMPANY_PROFILE_PATH` at a
+> scratch directory first.
+
 > **Ad-hoc scripts:** `get_settings()` requires `EXEC_EMAIL_ADDRESS` (no
 > default), so a one-off `uv run python` snippet needs it exported alongside
 > `ANTHROPIC_API_KEY` — the test suite sets both in `tests/conftest.py`.

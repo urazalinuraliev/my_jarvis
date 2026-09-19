@@ -563,6 +563,25 @@ knowledge:
   domain_aliases_source: openexecutive.knowledge.retriever.DOMAIN_ALIASES
   dedupe_note: Multi-domain chunks can fan out to multiple rows; the retriever dedupes by text before returning.
 
+  store_recovery: |
+    ChromaDBStore.__init__ recovers only from specific corruption
+    signatures (_CORRUPTION_MARKERS: "range start index"/"out of range for
+    slice" panics, "file is not a database", "database disk image is
+    malformed", hnswlib "corrupted") — NOT from any PanicException as such.
+    It os.rename()s the dir to <dir>.corrupt-<UTC stamp> (all-or-nothing;
+    shutil.move's copytree+rmtree fallback deleted live files on Windows)
+    and reopens. Any other panic (is_rust_panic) → RuntimeError, store
+    untouched. _open_client snapshots chromadb's SharedSystemClient cache
+    for the path before PersistentClient and, on failure, stops + pops only
+    the System that call created (it is cached before start(), so it would
+    otherwise be reused forever); a working client's System is kept.
+    _open_client runs under a process-wide _OPEN_LOCK (retrieval opens
+    stores from worker threads). The lifespan leaves app.state.store UNSET
+    on failure (routes' _get_store build their own store only when the
+    attribute is absent) and logs, without discarding the store, if seeding
+    fails — panics included. Known gap: until the store opens, retrieve()
+    raises and so do chat turns that use it (the API itself stays up).
+
 memory:
   episodic_db: ./episodic_memory.db
   tables:
@@ -1726,6 +1745,21 @@ review:
     Rejected items are filtered out of every retrieval. Approved items
     can be promoted in priority. The Executive never sees pending items
     until an SME approves them.
+  schema_upgrade: |
+    initialize_db rebuilds a review table whose shape is not current (all
+    columns present AND item_id / annotation_id the sole PK). One
+    transaction, foreign_keys OFF (DROP would otherwise cascade): CREATE
+    <table>_legacy_<stamp> AS SELECT *, DROP, CREATE canonical, then the
+    old rows are normalized in Python (_salvage_item / _salvage_annotations):
+    item_id <-> domain/filename recovered from each other, first non-empty
+    of annotation_id|id and correction|annotation, non-pending status wins
+    dedup, invalid enums → defaults, orphaned annotations stay in the
+    backup only. review_items is created first when only annotations are
+    legacy. "Current" = every canonical column with the same (notnull, pk)
+    as the DDL (_column_shape). Errors roll back.
+    get_rejected_filenames / list_annotations call _ensure_schema (once
+    per process per DB file) because retrieval can run before the
+    lifespan's init.
 
 workflows:
   contract: Structured input → ordered named steps → rendered Markdown artifact.
@@ -2705,6 +2739,39 @@ integrations:
     table; `insert_outbound_context` / `find_open_outbound_context` /
     `mark_outbound_context_consumed`); `_VALID_OUTBOUND_CHANNELS` is
     `{discord_dm, telegram, slack_dm, email}`.
+
+  crewai_crews: |
+    openexecutive.integrations.crewai_adapter — CrewAIAdapter wraps the
+    sibling Smart-Marketing-Assistant-Crew-AI checkout (CREWAI_REPO_PATH
+    process env var, else next to the OpenExecutive checkout) behind
+    integrations.adapters.AgentAdapter. Crews: instagram (research →
+    strategy → visuals → copy → report) and meeting_prep. Runs use CrewAI
+    kickoff_async (worker thread — never blocks the event loop). Model:
+    CREWAI_MODEL, else a bare claude-* DEFAULT_MODEL prefixed anthropic/ —
+    only when OE routes it to Anthropic directly (not OPENROUTER_ENABLED,
+    not a LOCAL_MODELS entry); otherwise the run raises asking for
+    CREWAI_MODEL. Model + key go in-process via the crew repo's
+    crew_llm.configure (_provider_api_key: anthropic key for anthropic/ and
+    claude-*, openrouter key for openrouter/; never exported to
+    os.environ). The adapter only setdefaults CREWAI_DISABLE_TELEMETRY=true.
+    crew_unavailable_reason also requires src/crew_llm.py.
+    Instagram deliverables land in a per-run dir under CREW_OUTPUT_DIR
+    (default crew_runs/, gitignored) via the tasks' {output_dir}
+    output_file templates.
+    Entry points: run_crew chat tool (orchestrator.crewai_tools; advertised
+    only when crew_unavailable_reason() is None, decided at import; starts
+    the crew as a background asyncio task held in _background_runs and
+    returns status=started + run_id at once — a crew outlasts
+    CHAT_STREAM_TIMEOUT_S; the task completes/fails the workflow run, marks
+    it failed on CancelledError; exception text and the unavailable reason
+    are logged, never returned), `openexecutive crew` CLI,
+    Telegram /strategy and /marketing. Telegram: _handle_crew_command marks
+    the chat in _crew_runs_in_flight synchronously (no await between check
+    and add — closes the double-/strategy race), refuses while marked, and
+    _run_crew_and_report clears the mark in finally. NOT the chat lock.
+    Delivers plain text (no parse_mode — crew Markdown
+    breaks it and send_message drops rejected chunks): preview + the
+    deliverable files via sendDocument, full text if no file attaches.
 
 evals:
   module: openexecutive.evals

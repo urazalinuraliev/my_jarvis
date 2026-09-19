@@ -28,6 +28,10 @@ company/
 # Vector store
 *.chroma/
 chroma_db/
+chroma_db.corrupt-*/
+
+# CrewAI crew deliverables (CREW_OUTPUT_DIR)
+crew_runs/
 
 # OER cache (downloaded by `openexecutive ingest-oer`)
 packages/core/openexecutive/knowledge/external/
@@ -77,4 +81,6 @@ evals/results/
 # Anvil
 ~/.claude/anvil/
 *.db
+*.db-shm
+*.db-wal
 packages/ui/tsconfig.tsbuildinfo

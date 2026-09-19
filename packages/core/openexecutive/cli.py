@@ -307,7 +307,15 @@ def crew(crew_name: str, task: str, context: str) -> None:
 
 
 async def _crew(crew_name: str, task: str, context: str) -> None:
-    from openexecutive.integrations.crewai_adapter import get_crewai_adapter
+    from openexecutive.integrations.crewai_adapter import (
+        crew_unavailable_reason,
+        get_crewai_adapter,
+    )
+
+    unavailable = crew_unavailable_reason()
+    if unavailable is not None:
+        console.print(f"[red]{unavailable}[/red]")
+        raise SystemExit(1)
 
     adapter = get_crewai_adapter(crew=crew_name)
     result = await adapter.run(task=task, context=context)

@@ -38,7 +38,7 @@ def test_persona_uses_default_when_no_override() -> None:
     assert "{VOICE_PERSONA}" not in persona_text
     # The structural opening of the default persona must still be present.
     assert "You are the Executive" in persona_text
-    assert "You are not a consultant who generates frameworks." in persona_text
+    assert "You are not a consultant who generates generic frameworks." in persona_text
 
 
 def test_persona_applies_persona_override_parameter() -> None:

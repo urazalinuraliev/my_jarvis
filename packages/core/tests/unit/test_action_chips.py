@@ -369,6 +369,7 @@ def _all_registered_tool_names() -> set[str]:
     """
     from openexecutive.orchestrator.artifact_tools import DRAFT_ARTIFACT_TOOL_HANDLERS
     from openexecutive.orchestrator.broadcast_tools import BROADCAST_TOOL_HANDLERS
+    from openexecutive.orchestrator.crewai_tools import CREW_TOOL_HANDLERS
     from openexecutive.orchestrator.department_tools import DEPARTMENT_TOOL_HANDLERS
     from openexecutive.orchestrator.mcp_gateway import MCP_TOOL_NAMES
     from openexecutive.orchestrator.people_tools import PEOPLE_TOOL_HANDLERS
@@ -387,6 +388,7 @@ def _all_registered_tool_names() -> set[str]:
         | set(MCP_TOOL_NAMES)
         | set(TALENT_TOOL_HANDLERS)
         | set(WORKFLOW_RUN_TOOL_HANDLERS)
+        | set(CREW_TOOL_HANDLERS)
         # `create_alert` is in chat module rather than a HANDLERS dict.
         | {"create_alert"}
     )

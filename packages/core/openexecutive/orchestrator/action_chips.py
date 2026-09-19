@@ -388,10 +388,11 @@ def summarize_action(
     elif tool_name == "run_crew":
         crew = str(tool_input.get("crew", "")).replace("_", " ")
         run_id = (parsed or {}).get("run_id")
+        # The tool only starts the crew; the run page shows the outcome.
         if crew:
-            payload["summary"] = f"Ran {crew} crew"
+            payload["summary"] = f"Started {crew} crew"
         else:
-            payload["summary"] = "Ran a crew"
+            payload["summary"] = "Started a crew"
         payload["target"] = tool_input.get("crew") or None
         if isinstance(run_id, str) and run_id:
             payload["link"] = f"/jobs/runs/{run_id}"

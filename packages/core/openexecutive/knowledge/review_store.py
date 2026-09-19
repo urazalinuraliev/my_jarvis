@@ -4,8 +4,8 @@ import logging
 import os
 import sqlite3
 import uuid
-from collections.abc import Generator
-from contextlib import contextmanager
+from collections.abc import Callable, Generator
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -102,51 +102,264 @@ def _row_to_annotation(row: sqlite3.Row) -> Annotation:
     )
 
 
-def _migrate_review_items(conn: sqlite3.Connection) -> None:
-    """In-place additive migration for the review_items table.
+_REVIEW_ITEMS_DDL = """
+    CREATE TABLE IF NOT EXISTS review_items (
+        item_id          TEXT PRIMARY KEY,
+        content_type     TEXT NOT NULL,
+        domain           TEXT NOT NULL,
+        filename         TEXT NOT NULL,
+        status           TEXT NOT NULL DEFAULT 'pending',
+        priority         TEXT NOT NULL DEFAULT 'normal',
+        reviewer_notes   TEXT DEFAULT '',
+        reviewed_at      TEXT,
+        registered_at    TEXT NOT NULL,
+        last_modified_at TEXT NOT NULL
+    )
+"""
+_REVIEW_ITEMS_INDEXES = (
+    "CREATE INDEX IF NOT EXISTS idx_review_status ON review_items(status)",
+    "CREATE INDEX IF NOT EXISTS idx_review_domain ON review_items(domain, status)",
+)
+_REVIEW_ANNOTATIONS_DDL = """
+    CREATE TABLE IF NOT EXISTS review_annotations (
+        annotation_id TEXT PRIMARY KEY,
+        item_id       TEXT NOT NULL
+            REFERENCES review_items(item_id) ON DELETE CASCADE,
+        domain        TEXT NOT NULL,
+        correction    TEXT NOT NULL,
+        is_active     INTEGER NOT NULL DEFAULT 1,
+        created_at    TEXT NOT NULL
+    )
+"""
+_REVIEW_ANNOTATIONS_INDEXES = (
+    "CREATE INDEX IF NOT EXISTS idx_annot_domain ON review_annotations(domain, is_active)",
+)
 
-    Adds any column from the canonical schema that is missing on a legacy
-    table. Raises ``sqlite3.OperationalError`` on any failure so the caller
-    can fall back to a drop+recreate.
+_ITEM_COLUMNS: tuple[str, ...] = (
+    "item_id", "content_type", "domain", "filename", "status", "priority",
+    "reviewer_notes", "reviewed_at", "registered_at", "last_modified_at",
+)
+_ANNOTATION_COLUMNS: tuple[str, ...] = (
+    "annotation_id", "item_id", "domain", "correction", "is_active", "created_at",
+)
+
+# Domain recorded for an external source whose manifest gave none — the same
+# fallback ReviewStore.sync_external_registrations uses.
+_EXTERNAL_DEFAULT_DOMAIN = "general"
+
+# DB files whose review schema this process has already initialized. The read
+# paths (retrieval) can run before the API lifespan's initialize_db — e.g. the
+# CLI — so they initialize lazily, once per process per file.
+_initialized_paths: set[Path] = set()
+
+
+def _table_columns(conn: sqlite3.Connection, table: str) -> dict[str, sqlite3.Row]:
+    return {row["name"]: row for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _column_shape(ddl: str, table: str) -> dict[str, tuple[int, int]]:
+    """``(notnull, pk)`` for each column of the canonical *table*, read from its DDL."""
+    with closing(sqlite3.connect(":memory:")) as mem:
+        mem.execute(ddl)
+        return {row[1]: (row[3], row[5]) for row in mem.execute(f"PRAGMA table_info({table})")}
+
+
+_ITEMS_SHAPE = _column_shape(_REVIEW_ITEMS_DDL, "review_items")
+_ANNOTATIONS_SHAPE = _column_shape(_REVIEW_ANNOTATIONS_DDL, "review_annotations")
+
+
+def _is_current(cols: dict[str, sqlite3.Row], shape: dict[str, tuple[int, int]]) -> bool:
+    """True when every canonical column exists with the same NOT NULL and primary-key role.
+
+    A table that merely *has* the columns is not enough: older builds added
+    them as nullable ``ADD COLUMN``s beside a different primary key.
     """
-    existing = {row["name"] for row in conn.execute("PRAGMA table_info(review_items)")}
-    for col, ddl in (
-        ("domain", "TEXT NOT NULL DEFAULT ''"),
-        ("item_id", "TEXT"),
-        ("content_type", "TEXT"),
-        ("filename", "TEXT"),
-        ("status", "TEXT NOT NULL DEFAULT 'pending'"),
-        ("priority", "TEXT NOT NULL DEFAULT 'normal'"),
-        ("reviewer_notes", "TEXT DEFAULT ''"),
-        ("reviewed_at", "TEXT"),
-        ("registered_at", "TEXT NOT NULL DEFAULT ''"),
-        ("last_modified_at", "TEXT NOT NULL DEFAULT ''"),
-    ):
-        if col not in existing:
-            conn.execute(f"ALTER TABLE review_items ADD COLUMN {col} {ddl}")
+    for name, expected in shape.items():
+        if name not in cols or (cols[name]["notnull"], cols[name]["pk"]) != expected:
+            return False
+    return all(not row["pk"] for name, row in cols.items() if name not in shape)
 
 
-def _migrate_review_annotations(conn: sqlite3.Connection) -> None:
-    """In-place additive migration for the review_annotations table.
+def _text(value: Any) -> str:
+    return "" if value is None else str(value).strip()
 
-    Adds any column from the canonical schema that is missing on a legacy
-    table (older schemas used `id`/`annotation` instead of
-    `annotation_id`/`correction`). Raises ``sqlite3.OperationalError`` on
-    any failure so the caller can fall back to a drop+recreate.
+
+def _first_text(record: dict[str, Any], *names: str) -> str:
+    """The first non-empty value among *names* (a legacy table may carry both an
+    old column and an empty new one added beside it)."""
+    return next((text for name in names if (text := _text(record.get(name)))), "")
+
+
+def _enum_value(value: Any, enum_cls: type[StrEnum], default: StrEnum) -> str:
+    text = _text(value)
+    return text if text in {member.value for member in enum_cls} else default.value
+
+
+def _salvage_item(record: dict[str, Any], now: str) -> tuple[Any, ...] | None:
+    """One legacy review_items row as a canonical row, or None if it has no identity.
+
+    ``item_id`` is ``builtin:{domain}:{filename}`` or ``external:{source id}``,
+    so whichever of item_id / domain / filename is missing is recovered from
+    the others.
     """
-    existing = {
-        row["name"] for row in conn.execute("PRAGMA table_info(review_annotations)")
+    item_id = _text(record.get("item_id"))
+    domain = _text(record.get("domain"))
+    filename = _text(record.get("filename"))
+    content_type = _text(record.get("content_type"))
+    if not item_id:
+        if content_type == ContentType.EXTERNAL and filename:
+            item_id = f"{ContentType.EXTERNAL}:{filename}"
+        elif domain and filename:
+            item_id = f"{ContentType.BUILTIN}:{domain}:{filename}"
+        else:
+            return None
+    prefix, _, rest = item_id.partition(":")
+    if prefix == ContentType.EXTERNAL:
+        content_type = ContentType.EXTERNAL
+        filename = filename or rest
+        domain = domain or _EXTERNAL_DEFAULT_DOMAIN
+    elif prefix == ContentType.BUILTIN:
+        content_type = ContentType.BUILTIN
+        parsed_domain, _, parsed_filename = rest.partition(":")
+        domain = domain or parsed_domain
+        filename = filename or parsed_filename
+    return (
+        item_id,
+        _enum_value(content_type, ContentType, ContentType.BUILTIN),
+        domain,
+        filename,
+        _enum_value(record.get("status"), ReviewStatus, ReviewStatus.PENDING),
+        _enum_value(record.get("priority"), Priority, Priority.NORMAL),
+        _text(record.get("reviewer_notes")),
+        _text(record.get("reviewed_at")) or None,
+        _text(record.get("registered_at")) or now,
+        _text(record.get("last_modified_at")) or now,
+    )
+
+
+def _salvage_items(rows: list[sqlite3.Row], now: str) -> list[tuple[Any, ...]]:
+    """Canonical review_items rows from a legacy table, one per item_id.
+
+    A reviewed row beats a pending duplicate; otherwise the oldest row wins.
+    """
+    records = [dict(row) for row in rows]
+    records.sort(
+        key=lambda r: _enum_value(r.get("status"), ReviewStatus, ReviewStatus.PENDING)
+        == ReviewStatus.PENDING
+    )  # stable: keeps rowid order within each group
+    salvaged: dict[str, tuple[Any, ...]] = {}
+    for record in records:
+        row = _salvage_item(record, now)
+        if row is not None and row[0] not in salvaged:
+            salvaged[row[0]] = row
+    return list(salvaged.values())
+
+
+def _salvage_annotations(
+    rows: list[sqlite3.Row], item_domains: dict[str, str], now: str
+) -> list[tuple[Any, ...]]:
+    """Canonical review_annotations rows from a legacy table.
+
+    Older builds used ``id`` / ``annotation``; annotations whose item no longer
+    exists are left in the backup table only.
+    """
+    salvaged: dict[str, tuple[Any, ...]] = {}
+    for record in (dict(row) for row in rows):
+        annotation_id = _first_text(record, "annotation_id", "id")
+        correction = _first_text(record, "correction", "annotation")
+        item_id = _text(record.get("item_id"))
+        if not annotation_id or not correction or item_id not in item_domains:
+            continue
+        salvaged.setdefault(annotation_id, (
+            annotation_id,
+            item_id,
+            _text(record.get("domain")) or item_domains[item_id],
+            correction,
+            0 if _text(record.get("is_active")) in ("0", "false", "False") else 1,
+            _text(record.get("created_at")) or now,
+        ))
+    return list(salvaged.values())
+
+
+def _rebuild_table(
+    conn: sqlite3.Connection,
+    table: str,
+    ddl: str,
+    indexes: tuple[str, ...],
+    columns: tuple[str, ...],
+    salvage: Callable[[list[sqlite3.Row]], list[tuple[Any, ...]]],
+    stamp: str,
+) -> tuple[str, str, int, int]:
+    """Back up *table*, recreate it from *ddl*, refill it with ``salvage(old rows)``.
+
+    Returns ``(table, backup table, rows kept, rows before)``.
+    """
+    backup = f"{table}_legacy_{stamp}"
+    n = 1
+    while _table_columns(conn, backup):
+        backup = f"{table}_legacy_{stamp}_{n}"
+        n += 1
+    conn.execute(f"CREATE TABLE {backup} AS SELECT * FROM {table}")
+    old = conn.execute(f"SELECT * FROM {backup} ORDER BY rowid").fetchall()
+    conn.execute(f"DROP TABLE {table}")
+    conn.execute(ddl)
+    for index in indexes:
+        conn.execute(index)
+    kept = salvage(old)
+    placeholders = ", ".join("?" * len(columns))
+    conn.executemany(
+        f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})", kept
+    )
+    return table, backup, len(kept), len(old)
+
+
+def _item_domains(conn: sqlite3.Connection) -> dict[str, str]:
+    return {
+        row["item_id"]: row["domain"]
+        for row in conn.execute("SELECT item_id, domain FROM review_items")
     }
-    for col, ddl in (
-        ("annotation_id", "TEXT"),
-        ("item_id", "TEXT"),
-        ("domain", "TEXT NOT NULL DEFAULT ''"),
-        ("correction", "TEXT NOT NULL DEFAULT ''"),
-        ("is_active", "INTEGER NOT NULL DEFAULT 1"),
-        ("created_at", "TEXT NOT NULL DEFAULT ''"),
-    ):
-        if col not in existing:
-            conn.execute(f"ALTER TABLE review_annotations ADD COLUMN {col} {ddl}")
+
+
+def _rebuild_legacy_tables(
+    conn: sqlite3.Connection, rebuild_items: bool, rebuild_annotations: bool
+) -> None:
+    """Rebuild legacy-shaped review tables in one transaction (see initialize_db)."""
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    now = datetime.now(UTC).isoformat()
+    conn.commit()
+    # Off for the rebuild: with foreign keys on, DROP TABLE review_items would
+    # cascade-delete every annotation. The pragma is a no-op inside a
+    # transaction, hence the commit above and the explicit BEGIN below.
+    conn.execute("PRAGMA foreign_keys = OFF")
+    report: list[tuple[str, str, int, int]] = []
+    try:
+        conn.execute("BEGIN")
+        if rebuild_items:
+            report.append(_rebuild_table(
+                conn, "review_items", _REVIEW_ITEMS_DDL, _REVIEW_ITEMS_INDEXES,
+                _ITEM_COLUMNS, lambda old: _salvage_items(old, now), stamp,
+            ))
+        if rebuild_annotations:
+            # Annotations are salvaged against the items that exist, so the
+            # items table must exist even when only annotations are legacy.
+            conn.execute(_REVIEW_ITEMS_DDL)
+            report.append(_rebuild_table(
+                conn, "review_annotations", _REVIEW_ANNOTATIONS_DDL,
+                _REVIEW_ANNOTATIONS_INDEXES, _ANNOTATION_COLUMNS,
+                lambda old: _salvage_annotations(old, _item_domains(conn), now), stamp,
+            ))
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
+    for table, backup, kept_count, total in report:
+        logger.warning(
+            "review_store: rebuilt legacy %s to the current schema — kept %d of "
+            "%d rows (deduplicated); the original rows are preserved in %s",
+            table, kept_count, total, backup,
+        )
 
 
 class ReviewStore:
@@ -155,119 +368,37 @@ class ReviewStore:
 
     @staticmethod
     def initialize_db(db_path: Path = DB_PATH) -> None:
-        """Create the review tables if missing and migrate legacy schemas.
+        """Create the review tables, rebuilding any legacy-shaped ones.
 
-        Completely robust: if ANY operational error occurs during schema
-        creation or the additive migration (e.g. a legacy table with an
-        incompatible column set that can't be ALTERed — "no such column:
-        domain", "duplicate column name", a locked table, etc.), we drop
-        the offending tables and recreate them from scratch. This is safe
-        for the review store because:
-
-          - review_items / review_annotations are caches of review state.
-            The canonical rows (builtin knowledge registrations) are
-            re-synced on startup by ``sync_builtin_registrations``.
-          - Dropping and recreating loses only human review decisions
-            (approved/rejected status, annotations) made on a legacy
-            schema — an acceptable trade-off versus crashing the entire
-            application on startup.
-
-        A fresh DB (no tables) takes the fast path: executescript creates
-        everything, the additive migration is a no-op, and we return.
+        Older builds could leave tables of a different shape (an integer ``id``
+        primary key, ``annotation`` instead of ``correction``, …). Adding the
+        missing columns is not enough: without ``item_id`` as the primary key
+        ``INSERT OR IGNORE`` never ignores, so every startup re-inserts the
+        builtin registrations as duplicates, and NULL ``status`` values crash
+        ``_row_to_item``. Such a table is rebuilt in a single transaction: its
+        rows are first copied to ``<table>_legacy_<timestamp>`` (kept for the
+        operator), the salvageable ones are carried over — deduplicated, human
+        review decisions preferred — and the canonical table replaces it. Any
+        error rolls the rebuild back and propagates; nothing is dropped
+        without its backup.
         """
-        canonical_ddl = """
-            DROP TABLE IF EXISTS review_annotations;
-            DROP TABLE IF EXISTS review_items;
-            CREATE TABLE review_items (
-                item_id          TEXT PRIMARY KEY,
-                content_type     TEXT NOT NULL,
-                domain           TEXT NOT NULL,
-                filename         TEXT NOT NULL,
-                status           TEXT NOT NULL DEFAULT 'pending',
-                priority         TEXT NOT NULL DEFAULT 'normal',
-                reviewer_notes   TEXT DEFAULT '',
-                reviewed_at      TEXT,
-                registered_at    TEXT NOT NULL,
-                last_modified_at TEXT NOT NULL
-            );
-            CREATE INDEX idx_review_status ON review_items(status);
-            CREATE INDEX idx_review_domain ON review_items(domain, status);
-            CREATE TABLE review_annotations (
-                annotation_id TEXT PRIMARY KEY,
-                item_id       TEXT NOT NULL
-                    REFERENCES review_items(item_id) ON DELETE CASCADE,
-                domain        TEXT NOT NULL,
-                correction    TEXT NOT NULL,
-                is_active     INTEGER NOT NULL DEFAULT 1,
-                created_at    TEXT NOT NULL
-            );
-            CREATE INDEX idx_annot_domain ON review_annotations(domain, is_active);
-        """
-
         with _get_conn(db_path) as conn:
-            # Fast path: no legacy tables exist — create the canonical schema
-            # directly and return. No migration needed.
-            existing = {
-                row[0]
-                for row in conn.execute(
-                    "SELECT name FROM sqlite_master "
-                    "WHERE type='table' AND name IN ('review_items', 'review_annotations')"
-                )
-            }
-            if not existing:
-                conn.executescript(
-                    """
-                    CREATE TABLE IF NOT EXISTS review_items (
-                        item_id          TEXT PRIMARY KEY,
-                        content_type     TEXT NOT NULL,
-                        domain           TEXT NOT NULL,
-                        filename         TEXT NOT NULL,
-                        status           TEXT NOT NULL DEFAULT 'pending',
-                        priority         TEXT NOT NULL DEFAULT 'normal',
-                        reviewer_notes   TEXT DEFAULT '',
-                        reviewed_at      TEXT,
-                        registered_at    TEXT NOT NULL,
-                        last_modified_at TEXT NOT NULL
-                    );
-                    CREATE INDEX IF NOT EXISTS idx_review_status
-                        ON review_items(status);
-                    CREATE INDEX IF NOT EXISTS idx_review_domain
-                        ON review_items(domain, status);
-                    CREATE TABLE IF NOT EXISTS review_annotations (
-                        annotation_id TEXT PRIMARY KEY,
-                        item_id       TEXT NOT NULL
-                            REFERENCES review_items(item_id) ON DELETE CASCADE,
-                        domain        TEXT NOT NULL,
-                        correction    TEXT NOT NULL,
-                        is_active     INTEGER NOT NULL DEFAULT 1,
-                        created_at    TEXT NOT NULL
-                    );
-                    CREATE INDEX IF NOT EXISTS idx_annot_domain
-                        ON review_annotations(domain, is_active);
-                    """
-                )
-                return
-
-            # Legacy tables exist — attempt an in-place additive migration.
-            # If that fails for ANY reason, fall through to the drop+recreate
-            # path below so startup never crashes.
-            try:
-                _migrate_review_items(conn)
-                _migrate_review_annotations(conn)
-                return
-            except sqlite3.OperationalError as exc:
-                logger.warning(
-                    "review_store: schema migration failed (%s: %s); "
-                    "dropping review_items/review_annotations and recreating "
-                    "canonical schema (review state lost, builtin "
-                    "registrations re-synced on next startup)",
-                    type(exc).__name__,
-                    exc,
-                )
-
-            # Recreate from scratch. DROP + CREATE in a single executescript
-            # so the FK ordering is always correct (annotations → items).
-            conn.executescript(canonical_ddl)
+            items = _table_columns(conn, "review_items")
+            annotations = _table_columns(conn, "review_annotations")
+            rebuild_items = bool(items) and not _is_current(items, _ITEMS_SHAPE)
+            rebuild_annotations = bool(annotations) and not _is_current(
+                annotations, _ANNOTATIONS_SHAPE
+            )
+            if rebuild_items or rebuild_annotations:
+                _rebuild_legacy_tables(conn, rebuild_items, rebuild_annotations)
+            for statement in (
+                _REVIEW_ITEMS_DDL,
+                *_REVIEW_ITEMS_INDEXES,
+                _REVIEW_ANNOTATIONS_DDL,
+                *_REVIEW_ANNOTATIONS_INDEXES,
+            ):
+                conn.execute(statement)
+        _initialized_paths.add(Path(db_path).resolve())
 
     @staticmethod
     def sync_builtin_registrations(db_path: Path = DB_PATH) -> int:
@@ -424,14 +555,7 @@ class ReviewStore:
         return result.rowcount
 
     def get_rejected_filenames(self, content_type: ContentType) -> set[str]:
-        # NOTE: this method no longer creates the table itself — schema
-        # ownership lives in initialize_db(). A pre-existing DB created by an
-        # older version of this module may lack the `domain` column; the
-        # additive migration in initialize_db() adds it on startup. Calling
-        # initialize_db() here is defensive only — it's idempotent and cheap
-        # (all statements are IF NOT EXISTS), so a read path can never hit
-        # "no such table" even if the caller forgot to init.
-        ReviewStore.initialize_db(self._db_path)
+        _ensure_schema(self._db_path)
         with _get_conn(self._db_path) as conn:
             rows = conn.execute(
                 "SELECT filename FROM review_items WHERE content_type = ? AND status = 'rejected'",
@@ -536,16 +660,8 @@ class ReviewStore:
             clauses.append(f"domain IN ({placeholders})")
             params.extend(domains)
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-        
+        _ensure_schema(self._db_path)
         with _get_conn(self._db_path) as conn:
-            # Schema ownership lives in initialize_db(). The old inline
-            # CREATE TABLE here (which defined `id`/`annotation` instead of
-            # `annotation_id`/`correction` and lacked `domain`) has been
-            # removed — it could create an incompatible table on a fresh DB
-            # before initialize_db() ran. initialize_db() is idempotent, so
-            # calling it defensively here guarantees the schema is current
-            # without risking a duplicate-table error.
-            ReviewStore.initialize_db(self._db_path)
             rows = conn.execute(
                 f"SELECT * FROM review_annotations {where} ORDER BY created_at ASC",
                 params,
@@ -571,3 +687,9 @@ class ReviewStore:
             conn.execute(
                 "DELETE FROM review_annotations WHERE annotation_id = ?", (annotation_id,)
             )
+
+
+def _ensure_schema(db_path: Path) -> None:
+    """Run ``ReviewStore.initialize_db`` once per process for *db_path*."""
+    if Path(db_path).resolve() not in _initialized_paths:
+        ReviewStore.initialize_db(db_path)

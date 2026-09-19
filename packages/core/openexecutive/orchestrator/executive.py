@@ -36,6 +36,10 @@ from openexecutive.orchestrator.calendar_tools import (
     CALENDAR_TOOL_HANDLERS,
     CALENDAR_TOOLS,
 )
+from openexecutive.orchestrator.crewai_tools import (
+    CREW_TOOL_HANDLERS,
+    CREW_TOOLS,
+)
 from openexecutive.orchestrator.debug_events import DebugCollector
 from openexecutive.orchestrator.department_tools import (
     DEPARTMENT_TOOL_HANDLERS,
@@ -55,10 +59,6 @@ from openexecutive.orchestrator.onboarding_tools import (
 from openexecutive.orchestrator.people_tools import (
     PEOPLE_TOOL_HANDLERS,
     PEOPLE_TOOLS,
-)
-from openexecutive.orchestrator.crewai_tools import (
-    CREW_TOOL_HANDLERS,
-    CREW_TOOLS,
 )
 from openexecutive.orchestrator.research_tools import (
     RESEARCH_TOOL_HANDLERS,
