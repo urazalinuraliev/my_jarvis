@@ -8,9 +8,9 @@ class MeetingPrepTask():
     def research_task(self, agent, meeting_participants, meeting_context):
         return Task(
             description = dedent(f"""\
-                Conduct comprehensive reasearch on each of the individuals and companies
-                involve in the upcoming meeting. Gather information on recent
-                news, achievements, professional background, and any relevent
+                Conduct comprehensive research on each of the individuals and companies
+                involved in the upcoming meeting. Gather information on recent
+                news, achievements, professional background, and any relevant
                 business activities.
                 
                 Participants: {meeting_participants}
@@ -26,14 +26,14 @@ class MeetingPrepTask():
         return Task(
             description = dedent(f"""\
                 Analyze the current industry trends, challenges, and opportunities
-                relevan to the meeting's context. Consider market reports, recent
-                developments, and expert opinions to provide a ccomprehensive overview of the industry landscape.
+                relevant to the meeting's context. Consider market reports, recent
+                developments, and expert opinions to provide a comprehensive overview of the industry landscape.
                 
                 Participants: {meeting_participants}
                 Meeting Context: {meeting_context}"""),
             expected_output = dedent(f"""\
                 An insightful analysis that identifies major trends, potential
-                challenges, and strategic cpportunities."""),
+                challenges, and strategic opportunities."""),
             agent = agent,
             async_execution=True
         )
@@ -49,7 +49,7 @@ class MeetingPrepTask():
                 Meeting Objective: {meeting_objective}"""),
             expected_output = dedent(f"""\
                 Complete report with a list of key talking points, strategic questions
-                to ask to help achieve the meetings objective during the meeting."""),
+                to ask to help achieve the meeting's objective during the meeting."""),
             agent = agent
         )
 
@@ -64,7 +64,7 @@ class MeetingPrepTask():
                 Meeting Context: {meeting_context}
                 Meeting Objective: {meeting_objective}"""),
             expected_output = dedent(f"""\
-                A well-structured briefing document that includes seactions for participants bios, industry overview, talking points and strategic recommendations."""),
+                A well-structured briefing document that includes sections for participants bios, industry overview, talking points and strategic recommendations."""),
             agent = agent
         )
 

@@ -9,7 +9,7 @@ class MeetingPrepAgents():
     def research_agent(self):
         return Agent(
             role="Research Specialist",
-            goal="Conduct thorough researcch on people and companies involved in the meeting",
+            goal="Conduct thorough research on people and companies involved in the meeting",
             tools=ExaSearchToolSet.tools(),
             backstory=dedent("""\
                 As a Research Specialist, your mission is to uncover detailed information
@@ -25,7 +25,7 @@ class MeetingPrepAgents():
             goal="Analyze the current industry trends, challenges, and opportunities",
             tools=ExaSearchToolSet.tools(),
             backstory=dedent("""\
-                As an Industry Analyst, your analysis will indentify key trends,
+                As an Industry Analyst, your analysis will identify key trends,
                 challenges facing the industry, and potential opportunities that 
                 could be leveraged during the meeting for strategic advantage."""),
             verbose=True,
@@ -50,7 +50,7 @@ class MeetingPrepAgents():
             goal="Compile all gathered information into a concise, informative briefing document",
             backstory=dedent("""\
                 As the Briefing Coordinator, your role is to consolidate the research,
-                analysis, and stratigic insights."""),
+                analysis, and strategic insights."""),
             verbose=True,
             llm=build_llm(),
         )
