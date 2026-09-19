@@ -164,15 +164,37 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     settings = get_settings()
 
-    store = ChromaDBStore(persist_directory=settings.vector_store_path)
-    app.state.store = store
-    # Hand the warm store to the MCP server's resource/tool handlers, which
-    # have no FastAPI Request to reach app.state through.
-    mcp_server.set_store(store)
+    # ChromaDB is the vector store backing all RAG. Its PersistentClient can
+    # fail for two distinct reasons, and we handle each differently:
+    #
+    #  (a) Corruption (pyo3 panic, "file is not a database", etc.) —
+    #      ChromaDBStore.__init__ now auto-recovers by backing up the bad
+    #      directory and re-initialising. No lifespan change needed.
+    #
+    #  (b) Permanent environment failure (permission denied, unwritable path,
+    #      disk full, missing dependency) — the exception propagates. Rather
+    #      than crash the whole API, we log loudly and continue with a
+    #      degraded store so chat still works (just without RAG). Each
+    #      retrieve() call already guards its own store construction, so a
+    #      transient failure mid-session is recoverable.
+    try:
+        store = ChromaDBStore(persist_directory=settings.vector_store_path)
+        app.state.store = store
+        # Hand the warm store to the MCP server's resource/tool handlers, which
+        # have no FastAPI Request to reach app.state through.
+        mcp_server.set_store(store)
 
-    await seed_builtin_knowledge(store=store)
-    await seed_builtin_skills(store=store)
-    await seed_failures(store=store)
+        await seed_builtin_knowledge(store=store)
+        await seed_builtin_skills(store=store)
+        await seed_failures(store=store)
+    except Exception:
+        logging.getLogger("openexecutive").exception(
+            "ChromaDB store unavailable at %s — continuing without vector RAG; "
+            "chat still works but knowledge retrieval will be degraded",
+            settings.vector_store_path,
+        )
+        store = None
+        app.state.store = None
 
     initialize_db()
     initialize_alerts_db()

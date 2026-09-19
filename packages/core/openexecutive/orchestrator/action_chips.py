@@ -68,6 +68,8 @@ SIDE_EFFECTING_TOOLS: frozenset[str] = frozenset({
     # MCP — generic, classified by underlying tool name at runtime
     "call_tool",
     "load_mcp_server",
+    # External framework crews (CrewAI marketing/research pipelines)
+    "run_crew",
 })
 
 
@@ -381,6 +383,16 @@ def summarize_action(
         else:
             payload["summary"] = "Ran a workflow"
         payload["target"] = tool_input.get("workflow") or None
+        if isinstance(run_id, str) and run_id:
+            payload["link"] = f"/jobs/runs/{run_id}"
+    elif tool_name == "run_crew":
+        crew = str(tool_input.get("crew", "")).replace("_", " ")
+        run_id = (parsed or {}).get("run_id")
+        if crew:
+            payload["summary"] = f"Ran {crew} crew"
+        else:
+            payload["summary"] = "Ran a crew"
+        payload["target"] = tool_input.get("crew") or None
         if isinstance(run_id, str) and run_id:
             payload["link"] = f"/jobs/runs/{run_id}"
     else:

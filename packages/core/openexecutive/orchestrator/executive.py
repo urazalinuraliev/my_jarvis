@@ -56,6 +56,10 @@ from openexecutive.orchestrator.people_tools import (
     PEOPLE_TOOL_HANDLERS,
     PEOPLE_TOOLS,
 )
+from openexecutive.orchestrator.crewai_tools import (
+    CREW_TOOL_HANDLERS,
+    CREW_TOOLS,
+)
 from openexecutive.orchestrator.research_tools import (
     RESEARCH_TOOL_HANDLERS,
     RESEARCH_TOOLS,
@@ -165,6 +169,7 @@ _ALL_SKILL_TOOLS = [
     *TALENT_TOOLS,
     *ONBOARDING_TOOLS,
     *FORM_TOOLS,
+    *CREW_TOOLS,
 ]
 _ALL_SKILL_HANDLERS = {
     **SKILL_TOOL_HANDLERS,
@@ -182,6 +187,7 @@ _ALL_SKILL_HANDLERS = {
     **TALENT_TOOL_HANDLERS,
     **ONBOARDING_TOOL_HANDLERS,
     **FORM_TOOL_HANDLERS,
+    **CREW_TOOL_HANDLERS,
 }
 
 

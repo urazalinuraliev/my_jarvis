@@ -579,6 +579,10 @@ def get_recent_decisions(
     resolved = _resolve_db_path(db_path)
     if not resolved.exists():
         return []
+    # Defensive: ensure the decisions table (and additive migrations) exist
+    # before querying. A DB file may have been created by another subsystem
+    # without this module's initialize_db() having run yet.
+    initialize_db(resolved)
     with _get_conn(resolved) as conn:
         if session_id:
             rows = conn.execute(

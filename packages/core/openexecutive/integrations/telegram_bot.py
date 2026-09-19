@@ -73,20 +73,33 @@ def _split_message(text: str) -> list[str]:
     return [c for c in chunks if c]
 
 
-async def send_message(token: str, chat_id: int, text: str) -> str | None:
+async def send_message(
+    token: str,
+    chat_id: int,
+    text: str,
+    parse_mode: str | None = None,
+) -> str | None:
     """Send one or more messages to a Telegram chat, splitting if needed.
+
+    ``parse_mode`` ("Markdown" | "HTML" | None) is forwarded to the Telegram
+    API so callers can render bold/italic/bullet content. Default None keeps
+    the existing plain-text behaviour for all current callers.
 
     Returns the Telegram message_id of the last chunk sent (best-effort —
     ``None`` if no chunk delivered or the response lacks one), so callers can
-    link an outbound DM to a later reply. Existing callers ignore the return."""
+    link an outbound DM to a later reply. Existing callers ignore the return.
+    """
     client = _get_http_client()
     last_message_id: str | None = None
     for chunk in _split_message(text):
         if not chunk:
             continue
+        payload: dict[str, Any] = {"chat_id": chat_id, "text": chunk}
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
         resp = await client.post(
             _tg_url(token, "sendMessage"),
-            json={"chat_id": chat_id, "text": chunk},
+            json=payload,
         )
         if resp.is_error:
             logger.error(
@@ -121,6 +134,131 @@ async def _get_telegram_file_bytes(token: str, file_id: str) -> tuple[str, bytes
     url = f"https://api.telegram.org/file/bot{token}/{file_path}"
     data = await download_bytes(url)
     return file_path, data
+
+
+async def _run_crew_and_report(
+    *,
+    task: str,
+    context: str,
+    chat_id: int,
+    token: str,
+    sender_name: str,
+    message_id: int,
+) -> None:
+    """Run the CrewAI Instagram crew asynchronously and deliver the Markdown report.
+
+    Invoked as a background task from the webhook so the Telegram webhook
+    never blocks. Uses the per-chat lock for deduplication (a second
+    /strategy while one is running waits for the first to finish rather
+    than spawning a duplicate pipeline). Errors are caught and surfaced
+    as a clear user-facing notification instead of a silent drop.
+    """
+    session_id = f"telegram:{chat_id}"
+    from openexecutive.audit import log_event as audit_log
+
+    audit_log(
+        "tool_invocation",
+        f"CrewAI instagram crew triggered by {sender_name} (chat_id={chat_id}): {task[:160]}",
+        actor="telegram",
+        session_id=session_id,
+        details={
+            "channel": "telegram",
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "sender": sender_name,
+            "crew": "instagram",
+            "task": task,
+        },
+    )
+
+    # Per-chat dedup: serialize crew runs from the same chat. Without this,
+    # two near-simultaneous /strategy commands would both load the same
+    # state and both fire full multi-agent pipelines — doubling cost and
+    # delivering duplicate reports. Mirrors the lock used for regular
+    # chat turns below.
+    async with _chat_lock(chat_id):
+        try:
+            from openexecutive.integrations.crewai_adapter import get_crewai_adapter
+
+            adapter = get_crewai_adapter(crew="instagram")
+            result = await adapter.run(task=task, context=context)
+        except Exception as exc:
+            logger.exception(
+                "Telegram: CrewAI instagram crew failed for chat_id=%s", chat_id
+            )
+            try:
+                await send_message(
+                    token,
+                    chat_id,
+                    "⚠️ The Instagram content crew hit an error and couldn't "
+                    "complete. Please try again in a moment, or run "
+                    "`openexecutive crew --crew instagram --task ...` from the "
+                    "terminal for full error output.",
+                )
+            except Exception:
+                logger.exception("Telegram: also failed to send crew error reply")
+            return
+
+        # Format the report as Telegram Markdown. CrewAI output is plain
+        # text; we escape nothing (the crew's text is our own generated
+        # content, not user data) and pass parse_mode="Markdown" so the
+        # headline/bullet structure renders. Telegram's Markdown subset
+        # doesn't support nested bold-italic or tables, so we keep the
+        # formatting simple: bold headings + bullet lists.
+        report = _format_crew_report(result, task=task)
+        try:
+            await send_message(token, chat_id, report, parse_mode="Markdown")
+        except Exception:
+            logger.exception(
+                "Telegram: failed to deliver CrewAI report for chat_id=%s", chat_id
+            )
+            try:
+                await send_message(
+                    token,
+                    chat_id,
+                    "The crew finished but I couldn't deliver the report. "
+                    "Please run `openexecutive crew --crew instagram --task ...` "
+                    "from the terminal to see the output.",
+                )
+            except Exception:
+                logger.exception("Telegram: also failed to send delivery-failure reply")
+
+
+def _format_crew_report(result, *, task: str) -> str:
+    """Render a CrewAI AgentResult as a Telegram Markdown report."""
+    lines: list[str] = []
+    lines.append(f"*Instagram Content Crew* — topic: {task}")
+    lines.append("")
+
+    if result.text:
+        # CrewAI kickoff() returns a CrewOutput whose str() includes a
+        # "Final Output" header + the raw agent prose. Trim that wrapper
+        # so we control the rendering ourselves.
+        text = result.text
+        marker = "Final Output"
+        idx = text.find(marker)
+        if idx != -1:
+            text = text[idx + len(marker) :].lstrip(": \n")
+        lines.append(text.strip())
+        lines.append("")
+
+    if result.artifacts:
+        lines.append("*Artifacts produced:*")
+        for art in result.artifacts:
+            name = art.get("name", "artifact")
+            path = art.get("path", "")
+            line = f"- `{name}`"
+            if path:
+                line += f" → `{path}`"
+            lines.append(line)
+        lines.append("")
+
+    if result.consulted_specialists:
+        lines.append(
+            "_Specialists consulted: " + ", ".join(result.consulted_specialists) + "_"
+        )
+
+    return "\n".join(lines)
 
 
 async def _process_and_reply(
@@ -332,7 +470,27 @@ async def _process_and_reply(
 
 
 # Known bot commands that should be stripped before passing to the Executive.
+# /strategy and /marketing are intercepted separately (see _crew_command_match)
+# and dispatched to the CrewAI Instagram crew — they never reach the Executive.
 _COMMAND_RE = re.compile(r"^/(start|help|ask)(?:@\w+)?\s*", re.IGNORECASE)
+
+# Telegram commands that fan out to the integrated CrewAI Instagram crew.
+# Matched BEFORE _COMMAND_RE stripping so the task text is preserved verbatim.
+_CREW_COMMAND_RE = re.compile(
+    r"^/(strategy|marketing)(?:@\w+)?\s*(?P<task>.*)",
+    re.IGNORECASE,
+)
+
+# CrewAI runs can take a long time (multi-agent pipeline + LLM calls). Telegram
+# silently drops webhook requests that exceed 5s with no ack, so we always
+# return 200 immediately and do the real work in background_tasks. This ack
+# message is sent synchronously inside the webhook so the user sees "on it"
+# before the long poll.
+_CREW_ACK_TEXT = (
+    "🚀 Running the Instagram content crew for you — this runs a multi-agent "
+    "pipeline (research → strategy → visuals → copywriting) and takes a couple "
+    "of minutes. I'll post the final report here when it's done."
+)
 
 
 @router.post("/webhook/telegram", status_code=200)
@@ -399,6 +557,39 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks) 
 
     text: str = message.get("text", "") or message.get("caption", "")
     text = text.strip()
+
+    # CrewAI commands (/strategy, /marketing) fan out to the Instagram crew
+    # instead of the Executive. Match BEFORE _COMMAND_RE stripping so the
+    # task text is preserved verbatim.
+    crew_match = _CREW_COMMAND_RE.match(text)
+    if crew_match is not None:
+        task = (crew_match.group("task") or "").strip()
+        if not task:
+            await send_message(
+                token,
+                chat_id,
+                "Please tell me what topic to research. Example: "
+                "`/strategy summer campaign for our new product launch`",
+            )
+            return {}
+        background_tasks.add_task(
+            _run_crew_and_report,
+            task=task,
+            context="",
+            chat_id=chat_id,
+            token=token,
+            sender_name=sender_name,
+            message_id=message_id,
+        )
+        # Acknowledge immediately so the user sees the crew is running
+        # while Telegram waits. The real report lands as a follow-up
+        # message once the multi-agent pipeline finishes.
+        try:
+            await send_message(token, chat_id, _CREW_ACK_TEXT)
+        except Exception:
+            logger.exception("Telegram: failed to send crew ack for chat_id=%s", chat_id)
+        return {}
+
     # Only strip known bot commands (/start, /help, /ask), not arbitrary slash-prefixed content.
     text = _COMMAND_RE.sub("", text).strip()
 

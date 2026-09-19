@@ -285,6 +285,42 @@ async def _consolidate_initiatives(apply_changes: bool) -> None:
     )
 
 
+@cli.command("crew")
+@click.option(
+    "--crew",
+    "crew_name",
+    type=click.Choice(["meeting_prep", "instagram"]),
+    default="instagram",
+    show_default=True,
+    help="Which CrewAI crew to run.",
+)
+@click.option("--task", "task", required=True, help="Task/topic for the crew to work on.")
+@click.option("--context", "context", default="", help="Optional context (brand voice, audience, etc.).")
+def crew(crew_name: str, task: str, context: str) -> None:
+    """Run an integrated CrewAI multi-agent marketing workflow.
+
+    Bridges the sibling Smart-Marketing-Assistant-Crew-AI repo into the
+    OpenExecutive CLI. The crew runs its full agent pipeline (research →
+    strategy → copywriting, etc.) and prints the deliverable.
+    """
+    asyncio.run(_crew(crew_name, task, context))
+
+
+async def _crew(crew_name: str, task: str, context: str) -> None:
+    from openexecutive.integrations.crewai_adapter import get_crewai_adapter
+
+    adapter = get_crewai_adapter(crew=crew_name)
+    result = await adapter.run(task=task, context=context)
+
+    console.print(f"\n[bold green]{crew_name} crew[/bold green] — {len(result.artifacts)} artifact(s)\n")
+    if result.text:
+        console.print(result.text)
+    if result.artifacts:
+        console.print("\n[dim]Artifacts:[/dim]")
+        for art in result.artifacts:
+            console.print(f"  - {art.get('name')} → {art.get('path')}")
+
+
 @cli.command()
 def onboard() -> None:
     """Set up or update your company profile."""

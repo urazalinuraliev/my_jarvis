@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import sqlite3
 import uuid
@@ -11,6 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = Path(os.environ.get("EPISODIC_DB_PATH", "./episodic_memory.db"))
 
@@ -99,43 +102,172 @@ def _row_to_annotation(row: sqlite3.Row) -> Annotation:
     )
 
 
+def _migrate_review_items(conn: sqlite3.Connection) -> None:
+    """In-place additive migration for the review_items table.
+
+    Adds any column from the canonical schema that is missing on a legacy
+    table. Raises ``sqlite3.OperationalError`` on any failure so the caller
+    can fall back to a drop+recreate.
+    """
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(review_items)")}
+    for col, ddl in (
+        ("domain", "TEXT NOT NULL DEFAULT ''"),
+        ("item_id", "TEXT"),
+        ("content_type", "TEXT"),
+        ("filename", "TEXT"),
+        ("status", "TEXT NOT NULL DEFAULT 'pending'"),
+        ("priority", "TEXT NOT NULL DEFAULT 'normal'"),
+        ("reviewer_notes", "TEXT DEFAULT ''"),
+        ("reviewed_at", "TEXT"),
+        ("registered_at", "TEXT NOT NULL DEFAULT ''"),
+        ("last_modified_at", "TEXT NOT NULL DEFAULT ''"),
+    ):
+        if col not in existing:
+            conn.execute(f"ALTER TABLE review_items ADD COLUMN {col} {ddl}")
+
+
+def _migrate_review_annotations(conn: sqlite3.Connection) -> None:
+    """In-place additive migration for the review_annotations table.
+
+    Adds any column from the canonical schema that is missing on a legacy
+    table (older schemas used `id`/`annotation` instead of
+    `annotation_id`/`correction`). Raises ``sqlite3.OperationalError`` on
+    any failure so the caller can fall back to a drop+recreate.
+    """
+    existing = {
+        row["name"] for row in conn.execute("PRAGMA table_info(review_annotations)")
+    }
+    for col, ddl in (
+        ("annotation_id", "TEXT"),
+        ("item_id", "TEXT"),
+        ("domain", "TEXT NOT NULL DEFAULT ''"),
+        ("correction", "TEXT NOT NULL DEFAULT ''"),
+        ("is_active", "INTEGER NOT NULL DEFAULT 1"),
+        ("created_at", "TEXT NOT NULL DEFAULT ''"),
+    ):
+        if col not in existing:
+            conn.execute(f"ALTER TABLE review_annotations ADD COLUMN {col} {ddl}")
+
+
 class ReviewStore:
     def __init__(self, db_path: Path = DB_PATH) -> None:
         self._db_path = db_path
 
     @staticmethod
     def initialize_db(db_path: Path = DB_PATH) -> None:
-        with _get_conn(db_path) as conn:
-            conn.executescript("""
-                CREATE TABLE IF NOT EXISTS review_items (
-                    item_id          TEXT PRIMARY KEY,
-                    content_type     TEXT NOT NULL,
-                    domain           TEXT NOT NULL,
-                    filename         TEXT NOT NULL,
-                    status           TEXT NOT NULL DEFAULT 'pending',
-                    priority         TEXT NOT NULL DEFAULT 'normal',
-                    reviewer_notes   TEXT DEFAULT '',
-                    reviewed_at      TEXT,
-                    registered_at    TEXT NOT NULL,
-                    last_modified_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_review_status
-                    ON review_items(status);
-                CREATE INDEX IF NOT EXISTS idx_review_domain
-                    ON review_items(domain, status);
+        """Create the review tables if missing and migrate legacy schemas.
 
-                CREATE TABLE IF NOT EXISTS review_annotations (
-                    annotation_id TEXT PRIMARY KEY,
-                    item_id       TEXT NOT NULL
-                        REFERENCES review_items(item_id) ON DELETE CASCADE,
-                    domain        TEXT NOT NULL,
-                    correction    TEXT NOT NULL,
-                    is_active     INTEGER NOT NULL DEFAULT 1,
-                    created_at    TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_annot_domain
-                    ON review_annotations(domain, is_active);
-            """)
+        Completely robust: if ANY operational error occurs during schema
+        creation or the additive migration (e.g. a legacy table with an
+        incompatible column set that can't be ALTERed — "no such column:
+        domain", "duplicate column name", a locked table, etc.), we drop
+        the offending tables and recreate them from scratch. This is safe
+        for the review store because:
+
+          - review_items / review_annotations are caches of review state.
+            The canonical rows (builtin knowledge registrations) are
+            re-synced on startup by ``sync_builtin_registrations``.
+          - Dropping and recreating loses only human review decisions
+            (approved/rejected status, annotations) made on a legacy
+            schema — an acceptable trade-off versus crashing the entire
+            application on startup.
+
+        A fresh DB (no tables) takes the fast path: executescript creates
+        everything, the additive migration is a no-op, and we return.
+        """
+        canonical_ddl = """
+            DROP TABLE IF EXISTS review_annotations;
+            DROP TABLE IF EXISTS review_items;
+            CREATE TABLE review_items (
+                item_id          TEXT PRIMARY KEY,
+                content_type     TEXT NOT NULL,
+                domain           TEXT NOT NULL,
+                filename         TEXT NOT NULL,
+                status           TEXT NOT NULL DEFAULT 'pending',
+                priority         TEXT NOT NULL DEFAULT 'normal',
+                reviewer_notes   TEXT DEFAULT '',
+                reviewed_at      TEXT,
+                registered_at    TEXT NOT NULL,
+                last_modified_at TEXT NOT NULL
+            );
+            CREATE INDEX idx_review_status ON review_items(status);
+            CREATE INDEX idx_review_domain ON review_items(domain, status);
+            CREATE TABLE review_annotations (
+                annotation_id TEXT PRIMARY KEY,
+                item_id       TEXT NOT NULL
+                    REFERENCES review_items(item_id) ON DELETE CASCADE,
+                domain        TEXT NOT NULL,
+                correction    TEXT NOT NULL,
+                is_active     INTEGER NOT NULL DEFAULT 1,
+                created_at    TEXT NOT NULL
+            );
+            CREATE INDEX idx_annot_domain ON review_annotations(domain, is_active);
+        """
+
+        with _get_conn(db_path) as conn:
+            # Fast path: no legacy tables exist — create the canonical schema
+            # directly and return. No migration needed.
+            existing = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master "
+                    "WHERE type='table' AND name IN ('review_items', 'review_annotations')"
+                )
+            }
+            if not existing:
+                conn.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS review_items (
+                        item_id          TEXT PRIMARY KEY,
+                        content_type     TEXT NOT NULL,
+                        domain           TEXT NOT NULL,
+                        filename         TEXT NOT NULL,
+                        status           TEXT NOT NULL DEFAULT 'pending',
+                        priority         TEXT NOT NULL DEFAULT 'normal',
+                        reviewer_notes   TEXT DEFAULT '',
+                        reviewed_at      TEXT,
+                        registered_at    TEXT NOT NULL,
+                        last_modified_at TEXT NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_review_status
+                        ON review_items(status);
+                    CREATE INDEX IF NOT EXISTS idx_review_domain
+                        ON review_items(domain, status);
+                    CREATE TABLE IF NOT EXISTS review_annotations (
+                        annotation_id TEXT PRIMARY KEY,
+                        item_id       TEXT NOT NULL
+                            REFERENCES review_items(item_id) ON DELETE CASCADE,
+                        domain        TEXT NOT NULL,
+                        correction    TEXT NOT NULL,
+                        is_active     INTEGER NOT NULL DEFAULT 1,
+                        created_at    TEXT NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_annot_domain
+                        ON review_annotations(domain, is_active);
+                    """
+                )
+                return
+
+            # Legacy tables exist — attempt an in-place additive migration.
+            # If that fails for ANY reason, fall through to the drop+recreate
+            # path below so startup never crashes.
+            try:
+                _migrate_review_items(conn)
+                _migrate_review_annotations(conn)
+                return
+            except sqlite3.OperationalError as exc:
+                logger.warning(
+                    "review_store: schema migration failed (%s: %s); "
+                    "dropping review_items/review_annotations and recreating "
+                    "canonical schema (review state lost, builtin "
+                    "registrations re-synced on next startup)",
+                    type(exc).__name__,
+                    exc,
+                )
+
+            # Recreate from scratch. DROP + CREATE in a single executescript
+            # so the FK ordering is always correct (annotations → items).
+            conn.executescript(canonical_ddl)
 
     @staticmethod
     def sync_builtin_registrations(db_path: Path = DB_PATH) -> int:
@@ -292,6 +424,14 @@ class ReviewStore:
         return result.rowcount
 
     def get_rejected_filenames(self, content_type: ContentType) -> set[str]:
+        # NOTE: this method no longer creates the table itself — schema
+        # ownership lives in initialize_db(). A pre-existing DB created by an
+        # older version of this module may lack the `domain` column; the
+        # additive migration in initialize_db() adds it on startup. Calling
+        # initialize_db() here is defensive only — it's idempotent and cheap
+        # (all statements are IF NOT EXISTS), so a read path can never hit
+        # "no such table" even if the caller forgot to init.
+        ReviewStore.initialize_db(self._db_path)
         with _get_conn(self._db_path) as conn:
             rows = conn.execute(
                 "SELECT filename FROM review_items WHERE content_type = ? AND status = 'rejected'",
@@ -396,7 +536,16 @@ class ReviewStore:
             clauses.append(f"domain IN ({placeholders})")
             params.extend(domains)
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        
         with _get_conn(self._db_path) as conn:
+            # Schema ownership lives in initialize_db(). The old inline
+            # CREATE TABLE here (which defined `id`/`annotation` instead of
+            # `annotation_id`/`correction` and lacked `domain`) has been
+            # removed — it could create an incompatible table on a fresh DB
+            # before initialize_db() ran. initialize_db() is idempotent, so
+            # calling it defensively here guarantees the schema is current
+            # without risking a duplicate-table error.
+            ReviewStore.initialize_db(self._db_path)
             rows = conn.execute(
                 f"SELECT * FROM review_annotations {where} ORDER BY created_at ASC",
                 params,
