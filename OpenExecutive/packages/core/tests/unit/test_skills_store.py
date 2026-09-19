@@ -173,6 +173,100 @@ def test_seed_is_idempotent(isolated: ChromaDBStore) -> None:
     assert count_skills(isolated, source="builtin") == 2
 
 
+def test_seed_indexes_builtin_skills_added_later(isolated: ChromaDBStore) -> None:
+    """A populated index still picks up newly shipped builtin skills (e.g. an
+    imported skill pack) on the next start."""
+    import asyncio
+
+    _write_builtin(skills_index.BUILTIN_SKILLS_PATH, "strategy", "alpha")
+    asyncio.run(seed_builtin_skills(store=isolated))
+    _write_builtin(skills_index.BUILTIN_SKILLS_PATH, "marketing", "gamma")
+
+    assert asyncio.run(seed_builtin_skills(store=isolated)) == 1
+    assert count_skills(isolated, source="builtin") == 2
+    assert search_skills(query="gamma", store=isolated)[0]["name"] == "gamma"
+
+
+def test_seed_reindexes_changed_and_drops_removed_builtin_skills(
+    isolated: ChromaDBStore,
+) -> None:
+    import asyncio
+
+    alpha = _write_builtin(skills_index.BUILTIN_SKILLS_PATH, "strategy", "alpha")
+    beta = _write_builtin(skills_index.BUILTIN_SKILLS_PATH, "finance", "beta")
+    asyncio.run(seed_builtin_skills(store=isolated))
+
+    alpha.write_text(
+        alpha.read_text(encoding="utf-8").replace("built-in alpha", "reworded alpha"),
+        encoding="utf-8",
+    )
+    beta.unlink()
+
+    assert asyncio.run(seed_builtin_skills(store=isolated)) == 1  # alpha only
+    hits = search_skills(query="alpha", store=isolated, source_filter="builtin")
+    assert [(h["name"], h["description"]) for h in hits] == [("alpha", "reworded alpha")]
+
+
+def test_forced_seed_also_drops_removed_builtin_skills(isolated: ChromaDBStore) -> None:
+    import asyncio
+
+    _write_builtin(skills_index.BUILTIN_SKILLS_PATH, "strategy", "alpha")
+    beta = _write_builtin(skills_index.BUILTIN_SKILLS_PATH, "finance", "beta")
+    asyncio.run(seed_builtin_skills(store=isolated))
+    beta.unlink()
+
+    assert asyncio.run(seed_builtin_skills(store=isolated, force=True)) == 1
+    assert count_skills(isolated, source="builtin") == 1
+
+
+@pytest.mark.parametrize(
+    "bad_file",
+    [
+        b"---\nname: 123\ndescription: d\nwhen_to_use: w\ncategory: strategy\n---\n",
+        b"\xff\xfe not UTF-8",
+    ],
+)
+def test_seed_skips_an_unparseable_builtin_skill(isolated: ChromaDBStore, bad_file: bytes) -> None:
+    import asyncio
+
+    _write_builtin(skills_index.BUILTIN_SKILLS_PATH, "strategy", "alpha")
+    (skills_index.BUILTIN_SKILLS_PATH / "strategy" / "broken.md").write_bytes(bad_file)
+
+    assert asyncio.run(seed_builtin_skills(store=isolated)) == 1
+    assert count_skills(isolated, source="builtin") == 1
+
+
+def test_seed_keeps_the_index_when_no_builtin_skill_is_found(isolated: ChromaDBStore) -> None:
+    """An empty builtin tree is a broken install; wiping the index would only
+    cost a full re-embed on the next healthy start."""
+    import asyncio
+
+    alpha = _write_builtin(skills_index.BUILTIN_SKILLS_PATH, "strategy", "alpha")
+    asyncio.run(seed_builtin_skills(store=isolated))
+    alpha.unlink()
+
+    assert asyncio.run(seed_builtin_skills(store=isolated)) == 0
+    assert count_skills(isolated, source="builtin") == 1
+
+
+def test_seed_warns_about_a_company_skill_shadowed_by_a_builtin(
+    isolated: ChromaDBStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import asyncio
+
+    _write_builtin(skills_index.BUILTIN_SKILLS_PATH, "marketing", "content-strategy")
+    company = skills_repo._company_skills_path() / "marketing" / "content-strategy.md"
+    company.parent.mkdir(parents=True)
+    company.write_text("company version", encoding="utf-8")
+    warnings: list[str] = []
+    monkeypatch.setattr(
+        skills_index.logger, "warning", lambda msg, *args: warnings.append(msg % args)
+    )
+
+    asyncio.run(seed_builtin_skills(store=isolated))
+    assert any("shadowed" in warning and "content-strategy" in warning for warning in warnings)
+
+
 def test_list_includes_both_sources(isolated: ChromaDBStore) -> None:
     import asyncio
 

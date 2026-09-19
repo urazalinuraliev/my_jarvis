@@ -563,6 +563,31 @@ knowledge:
   domain_aliases_source: openexecutive.knowledge.retriever.DOMAIN_ALIASES
   dedupe_note: Multi-domain chunks can fan out to multiple rows; the retriever dedupes by text before returning.
 
+  skills: |
+    Markdown skills with YAML frontmatter (name, description, when_to_use,
+    category; knowledge.skills). Builtin: knowledge/builtin/skills/<category>/
+    (read-only). Company: company/skills/ (skill tools + /skills UI). Indexed
+    in the ChromaDB `skills` collection by knowledge.skills_index;
+    seed_builtin_skills (lifespan) reconciles builtin rows (ids
+    skill::builtin::<name>) with disk: indexes new skills and ones whose
+    description / when_to_use / category differ from the row's metadata,
+    deletes rows whose file is gone, warns about company skills shadowed by
+    a same-named builtin (lookups resolve builtin first). force=True
+    re-indexes all. An unparseable file is skipped with a warning; if none
+    parses (a broken install) the rows are kept rather than wiped.
+    builtin/skills/marketing/ holds 18 skills generated from the
+    ai-marketing-skills pack (my_jarvis/ai-marketing-skills, MIT) by
+    scripts/import_marketing_skills.py → knowledge.agent_skills.import_pack:
+    "Use this skill to <what>. Trigger it <when>." → description/when_to_use,
+    compatibility → "> **Requirements:**" under the title (minus the "No
+    special requirements." boilerplate). The footer (last line, starting
+    "*Imported from [ai-marketing-skills]") carries the source path and
+    copyright and marks generated files; the pack LICENSE is copied to
+    LICENSE-ai-marketing-skills.txt beside them (MIT notice obligation — the
+    files ship in the wheel/image). Imported names must be lowercase
+    kebab-case; collisions with hand-written skills are checked
+    case-insensitively and abort before any write.
+    test_committed_marketing_skills_match_the_pack guards drift both ways.
   store_recovery: |
     ChromaDBStore.__init__ recovers only from specific corruption
     signatures (_CORRUPTION_MARKERS: "range start index"/"out of range for

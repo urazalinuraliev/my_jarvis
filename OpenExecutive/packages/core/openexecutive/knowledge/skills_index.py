@@ -13,7 +13,6 @@ from typing import Any
 from openexecutive.knowledge.loader import BUILTIN_KNOWLEDGE_PATH
 from openexecutive.knowledge.skills import (
     Skill,
-    SkillParseError,
     SkillSource,
     parse_skill_file,
 )
@@ -116,6 +115,23 @@ def search_skills(
     return hits
 
 
+def _indexed_builtin_skills(store: ChromaDBStore) -> dict[str, dict[str, Any]]:
+    """The builtin rows of the skill index: id → metadata."""
+    col = store._get_or_create_collection(SKILLS_COLLECTION)
+    rows = col.get(where={"source": "builtin"}, include=["metadatas"])
+    return dict(zip(rows.get("ids", []), rows.get("metadatas") or [], strict=False))
+
+
+def _index_is_current(meta: dict[str, Any] | None, skill: Skill) -> bool:
+    """Whether an indexed row still matches the text it embeds (see _skill_doc_text)."""
+    fm = skill.frontmatter
+    return meta is not None and (
+        meta.get("description"),
+        meta.get("when_to_use"),
+        meta.get("category"),
+    ) == (fm.description, fm.when_to_use, fm.category)
+
+
 def _iter_skill_files(root: Path) -> list[Path]:
     if not root.exists():
         return []
@@ -123,25 +139,68 @@ def _iter_skill_files(root: Path) -> list[Path]:
 
 
 async def seed_builtin_skills(store: ChromaDBStore | None = None, force: bool = False) -> int:
-    """Index every built-in skill on disk. Idempotent: skipped if collection non-empty."""
+    """Bring the index's builtin rows in line with the builtin skills on disk.
+
+    Indexes builtin skills that are new or whose description, when_to_use or
+    category changed (e.g. after a pack re-import), drops rows whose file is
+    gone, and leaves the rest alone, so start-up only embeds what changed.
+    ``force`` re-indexes every builtin skill. Returns how many were indexed.
+    """
     if store is None:
         from openexecutive.config import get_settings
 
         store = ChromaDBStore(persist_directory=get_settings().vector_store_path)
 
-    if not force and store.get_collection_count(SKILLS_COLLECTION) > 0:
-        return 0
-
+    indexed = _indexed_builtin_skills(store)
+    on_disk: set[str] = set()
     count = 0
     for path in _iter_skill_files(BUILTIN_SKILLS_PATH):
         try:
             skill = parse_skill_file(path, source="builtin")
-        except SkillParseError as e:
+        except (ValueError, TypeError, OSError) as e:
+            # SkillParseError is a ValueError; the rest come from a file that is
+            # unreadable or undecodable, or has a non-string field. This runs on
+            # every start, so one bad file must not abort the seeding after it.
             logger.warning("Skipping malformed skill %s: %s", path, e)
+            continue
+        skill_id = _skill_id(skill.frontmatter.name, "builtin")
+        on_disk.add(skill_id)
+        if not force and _index_is_current(indexed.get(skill_id), skill):
             continue
         index_skill(skill, store)
         count += 1
+
+    if on_disk:
+        for skill_id, meta in indexed.items():
+            if skill_id not in on_disk:
+                delete_skill_index(str(meta.get("name", "")), "builtin", store)
+    elif indexed:
+        # No readable builtin skill at all is a broken install, not a release
+        # that dropped them all: keep the rows rather than wipe the index.
+        logger.warning(
+            "No builtin skills found under %s; keeping the %d indexed ones",
+            BUILTIN_SKILLS_PATH,
+            len(indexed),
+        )
+    _warn_about_shadowed_company_skills()
     return count
+
+
+def _warn_about_shadowed_company_skills() -> None:
+    """Log company skills hidden by a builtin skill of the same name.
+
+    Name lookups (load_skill, update, delete) resolve builtin first, so such a
+    company skill is unreachable until renamed. New company skills can't take
+    a builtin name; this catches ones created before that builtin shipped.
+    """
+    builtin = {path.stem for path in _iter_skill_files(BUILTIN_SKILLS_PATH)}
+    for path in _iter_skill_files(_company_skills_path()):
+        if path.stem in builtin:
+            logger.warning(
+                "Company skill %s is shadowed by the builtin skill of the same name; "
+                "rename it to use it again",
+                path,
+            )
 
 
 def count_skills(store: ChromaDBStore, source: SkillSource | None = None) -> int:
