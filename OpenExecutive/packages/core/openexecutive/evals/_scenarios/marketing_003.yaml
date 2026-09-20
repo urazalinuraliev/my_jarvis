@@ -1,0 +1,26 @@
+id: marketing_003
+domain: marketing
+description: "Ad angles for a new campaign — the answer should follow the builtin marketing skill procedure, not improvise a generic list"
+company_context:
+  name: "Anvar Tech"
+  stage: "Seed"
+  industry: "B2B SaaS / Sales automation"
+  headcount: 12
+  arr: 400000
+query: |
+  Our paid ads have the same creative for six months and CPL is climbing. Give me
+  three new ad angles for our sales-automation product, who each one is aimed at,
+  and how I should test them over the next month.
+expected_topics:
+  - distinct_angles_not_reworded_copy
+  - audience_per_angle
+  - test_plan_with_budget_and_duration
+  - success_metric_per_angle
+required_routing:
+  - cmo
+quality_criteria:
+  # The judge sees the response only, never the tool trace, so this asks for
+  # what following the ad-angles skill produces, not that the skill was called.
+  angles_are_differentiated: true
+  testing_plan_is_concrete: true
+  not_generic: true
