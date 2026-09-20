@@ -84,3 +84,6 @@ evals/results/
 *.db-shm
 *.db-wal
 packages/ui/tsconfig.tsbuildinfo
+
+# Local dev stack: PIDs and logs written by scripts/local_stack.ps1
+.local-stack/
