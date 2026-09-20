@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import functools
+import inspect
+import logging
 import re
-from typing import Any
+from collections.abc import Callable
+from typing import Any, ParamSpec
 
 from openexecutive.audit import get_active_ids
 from openexecutive.audit import log_event as _audit_log
@@ -11,7 +15,9 @@ from openexecutive.knowledge.review_store import (
     Priority,
     ReviewStore,
 )
-from openexecutive.knowledge.store import ChromaDBStore
+from openexecutive.knowledge.store import ChromaDBStore, is_rust_panic
+
+logger = logging.getLogger(__name__)
 
 # Cosine distance threshold for the main retrieve() path. Hits with a
 # distance > this are dropped before the top-K slice. Mirrors the value
@@ -94,6 +100,7 @@ def _emit_retrieval_audit(
     company_results: list[dict[str, Any]],
     annotation_count: int,
     collection: str,
+    error: str | None = None,
 ) -> None:
     """Fire-and-forget audit emit for a retrieval pass.
 
@@ -101,6 +108,11 @@ def _emit_retrieval_audit(
     Executive at turn entry; emits None for both when called outside a
     turn (CLI, ad-hoc workflows) so the row is still captured but won't
     cluster into a session timeline. log_event already swallows.
+
+    *error* is the exception type when retrieval failed and the turn was
+    answered ungrounded. It goes in the summary and in ``details`` so the
+    session flow chart and the audit list both say "this failed" —
+    otherwise the row is indistinguishable from "we asked, found nothing".
     """
     session_id, turn_id = get_active_ids()
 
@@ -119,9 +131,10 @@ def _emit_retrieval_audit(
 
     total = len(builtin_results) + len(company_results)
     domain_str = ",".join(domain_filter) if domain_filter else "*"
+    outcome = f"failed ({error})" if error else f"{total} chunks"
     _audit_log(
         "knowledge_retrieval",
-        f"retrieve({domain_str}) → {total} chunks: {query[:140]}",
+        f"retrieve({domain_str}) → {outcome}: {query[:140]}",
         session_id=session_id,
         turn_id=turn_id,
         actor=specialist_name or "executive",
@@ -133,6 +146,7 @@ def _emit_retrieval_audit(
             "builtin_count": len(builtin_results),
             "company_count": len(company_results),
             "annotation_count": annotation_count,
+            "error": error,
         },
         full={
             "query": query,
@@ -159,6 +173,59 @@ DOMAIN_ALIASES: dict[str, list[str]] = {
 }
 
 
+_P = ParamSpec("_P")
+
+
+def _degrades_to_no_context(func: Callable[_P, str]) -> Callable[_P, str]:
+    """Return no context instead of raising when retrieval fails.
+
+    Retrieval is an enhancement to a turn, not a precondition for one: a
+    locked or corrupt ChromaDB used to fail the whole chat turn, because the
+    route runs this call in the same ``asyncio.gather`` as the episodic,
+    briefing and peer-memory fetches — all of which already degrade to "".
+    Now the answer loses its grounding instead of the user losing the answer.
+
+    A failure stays visible rather than silent: it is logged with its
+    traceback, and the turn's audit row still fires, carrying the exception
+    type into the row's summary ("retrieve(*) → failed (RuntimeError): …")
+    and its ``details.error``. The catch is deliberately wide — a bug in the
+    formatting below degrades the same way an unopenable store does — which
+    is why the row says *failed*, not *store unavailable*: the log line and
+    ``/health`` are what tell an operator which it was.
+
+    Rust panics from chromadb's bindings derive from BaseException, so they
+    are caught the same way ``api.main`` catches them around seeding.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> str:
+        try:
+            return func(*args, **kwargs)
+        except BaseException as exc:
+            if not isinstance(exc, Exception) and not is_rust_panic(exc):
+                raise
+            logger.exception(
+                "%s failed — answering without retrieved knowledge", func.__name__
+            )
+            # Bind against the wrapped signature so a positionally-passed
+            # specialist still lands on the right actor in the audit row.
+            bound = inspect.signature(func).bind_partial(*args, **kwargs).arguments
+            _emit_retrieval_audit(
+                query=str(bound.get("query", "")),
+                domain_filter=bound.get("domain_filter"),
+                specialist_name=bound.get("specialist_name"),
+                builtin_results=[],
+                company_results=[],
+                annotation_count=0,
+                collection=func.__name__,
+                error=type(exc).__name__,
+            )
+            return ""
+
+    return wrapper
+
+
+@_degrades_to_no_context
 def retrieve(
     query: str,
     domain_filter: list[str] | None = None,
@@ -357,6 +424,7 @@ def retrieve(
     return "\n\n".join(parts)
 
 
+@_degrades_to_no_context
 def retrieve_failures(
     query: str,
     domain_filter: list[str] | None = None,
@@ -388,9 +456,10 @@ def retrieve_failures(
     )
 
     # Cosine distance threshold (configurable via KNOWLEDGE_DISTANCE_THRESHOLD):
-    # a larger distance means the match is too weak to be useful.
+    # a larger distance means the match is too weak to be useful. Same gate as
+    # retrieve(), so a row with no distance is dropped rather than raising.
     threshold = settings.knowledge_distance_threshold
-    filtered = _dedupe_by_text([r for r in raw if r["distance"] <= threshold])
+    filtered = _dedupe_by_text([r for r in raw if _passes_threshold(r, threshold)])
     results = filtered[:n_results]
 
     # Audit emit (failure cases collection). Fire even when empty so the

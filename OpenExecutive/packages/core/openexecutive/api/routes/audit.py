@@ -254,6 +254,11 @@ def _node_label(event_type: str, summary: str, details: dict[str, Any]) -> str:
         domain = details.get("domain_filter") or "*"
         if isinstance(domain, list):
             domain = ",".join(domain) or "*"
+        # A failed retrieval answers the turn ungrounded, so its node must not
+        # read like a healthy search that found nothing.
+        error = details.get("error")
+        if error:
+            return f"RAG[{domain}] · failed ({error})"[:60]
         return f"RAG[{domain}] · {n} chunks"[:60]
     if event_type == "cache_event":
         cr = details.get("cache_read_input_tokens", 0)

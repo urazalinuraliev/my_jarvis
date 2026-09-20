@@ -102,6 +102,12 @@ class CompanyDocContent(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+    # "ok" | "unavailable" — a store that cannot be opened (or counted) no
+    # longer fails chat turns (they answer ungrounded), so this is how an
+    # operator sees it. The probe does not query, so an index segment that
+    # only breaks on query still reads "ok"; that one shows up in the logs
+    # and in the turn's knowledge_retrieval audit row.
+    vector_store: str = "ok"
     builtin_knowledge_chunks: int
     company_profile_loaded: bool
     company_name: str | None = None

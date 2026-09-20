@@ -18,6 +18,7 @@ from openexecutive.audit.redaction import (
     audit_tool_result_full,
 )
 from openexecutive.config import get_settings
+from openexecutive.knowledge.store import is_rust_panic
 from openexecutive.memory.honcho_client import ReasoningLevel as HonchoReasoningLevel
 from openexecutive.orchestrator.action_chips import summarize_action
 from openexecutive.orchestrator.alert_tools import (
@@ -114,6 +115,40 @@ def _trunc(value: Any, limit: int = 200) -> str:
     if len(s) <= limit:
         return s
     return f"{s[:limit]}…[truncated {len(s) - limit} chars]"
+
+
+def _tool_results_or_errors(
+    labels: list[str], results: list[Any]
+) -> list[str]:
+    """Turn a gathered tool batch into strings, one failed tool at a time.
+
+    ``asyncio.gather`` without ``return_exceptions`` loses the whole turn to a
+    single raising handler — e.g. every skill tool goes through ChromaDB, so a
+    corrupt store used to kill the answer instead of one tool call. The model
+    gets a tool error it can work around, the same shape handlers use for
+    their own errors. Cancellation (the turn's timeout) is never swallowed.
+
+    Handlers that report their own failure know whether the side effect
+    happened; this one does not — the tool may have posted the message or
+    booked the meeting and then raised. So the error tells the model not to
+    retry, which is also why the exception's message is left out: only its
+    type, never text that could carry store paths or remote payloads.
+    """
+    out: list[str] = []
+    for label, result in zip(labels, results, strict=True):
+        if not isinstance(result, BaseException):
+            out.append(result)
+            continue
+        if not isinstance(result, Exception) and not is_rust_panic(result):
+            raise result
+        logger.exception("tool %s failed", label, exc_info=result)
+        out.append(
+            json.dumps({
+                "error": f"{label} failed: {type(result).__name__}",
+                "retry": "no — it may have completed; tell the principal it failed instead",
+            })
+        )
+    return out
 
 
 def _build_current_speaker_block(person_id: int | None) -> str | None:
@@ -1377,8 +1412,15 @@ class Executive:
             if skill_tool_uses:
                 for tu in skill_tool_uses:
                     logger.info("→ skill:%s  input=%s", tu["name"], _trunc(tu["input"]))
-                skill_results = await asyncio.gather(
-                    *(_ALL_SKILL_HANDLERS[tu["name"]](tu["input"]) for tu in skill_tool_uses)
+                skill_results = _tool_results_or_errors(
+                    [tu["name"] for tu in skill_tool_uses],
+                    await asyncio.gather(
+                        *(
+                            _ALL_SKILL_HANDLERS[tu["name"]](tu["input"])
+                            for tu in skill_tool_uses
+                        ),
+                        return_exceptions=True,
+                    ),
                 )
                 for tu, result in zip(skill_tool_uses, skill_results, strict=True):
                     logger.info("← skill:%s  result=%s", tu["name"], _trunc(result))
@@ -1447,8 +1489,19 @@ class Executive:
                         )
                     else:
                         logger.info("→ %s  input=%s", tu["name"], _trunc(tu["input"]))
-                mcp_results = await asyncio.gather(
-                    *(_mcp_dispatch[tu["name"]](tu["input"]) for tu in mcp_tool_uses)
+                mcp_results = _tool_results_or_errors(
+                    # Label by the wrapped tool, like the result loop below:
+                    # "call_tool failed" names nothing when several run at once.
+                    [
+                        tu["input"].get("name", tu["name"])
+                        if tu["name"] == "call_tool"
+                        else tu["name"]
+                        for tu in mcp_tool_uses
+                    ],
+                    await asyncio.gather(
+                        *(_mcp_dispatch[tu["name"]](tu["input"]) for tu in mcp_tool_uses),
+                        return_exceptions=True,
+                    ),
                 )
                 for tu, result in zip(mcp_tool_uses, mcp_results, strict=True):
                     tool_label = tu["input"].get("name", tu["name"]) if tu["name"] == "call_tool" else tu["name"]

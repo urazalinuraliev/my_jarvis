@@ -13,25 +13,39 @@ router = APIRouter()
 async def health_check() -> HealthResponse:
     from openexecutive.config import get_settings
     from openexecutive.knowledge.skills_index import count_skills
-    from openexecutive.knowledge.store import ChromaDBStore
+    from openexecutive.knowledge.store import ChromaDBStore, is_rust_panic
     from openexecutive.onboarding.profile_builder import load_or_create_profile
 
     settings = get_settings()
 
     builtin_skills_count = 0
     company_skills_count = 0
+    # A store that won't open is otherwise invisible: retrieval and the skill
+    # tools degrade to "no context" so the turn still answers, and 0 chunks
+    # reads the same as an empty-but-healthy store. Report it explicitly.
+    #
+    # This probes opening and counting only — no query, because embedding one
+    # would put a model call on an unauthenticated liveness endpoint. An index
+    # segment that only fails on query therefore still reads "ok" here; those
+    # failures surface in the logs and in the turn's knowledge_retrieval audit
+    # row ("failed (PanicException)").
+    vector_store = "ok"
     try:
         store = ChromaDBStore(persist_directory=settings.vector_store_path)
         chunk_count = store.get_collection_count(ChromaDBStore.BUILTIN_COLLECTION)
         builtin_skills_count = count_skills(store, source="builtin")
         company_skills_count = count_skills(store, source="company")
-    except Exception:
+    except BaseException as exc:  # a Rust panic from the bindings is not an Exception
+        if not isinstance(exc, Exception) and not is_rust_panic(exc):
+            raise
         chunk_count = 0
+        vector_store = "unavailable"
 
     profile = load_or_create_profile()
 
     return HealthResponse(
         status="ok",
+        vector_store=vector_store,
         builtin_knowledge_chunks=chunk_count,
         company_profile_loaded=not profile.is_empty(),
         company_name=profile.name if not profile.is_empty() else None,

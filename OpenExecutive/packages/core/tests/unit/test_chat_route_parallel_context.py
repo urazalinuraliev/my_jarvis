@@ -204,6 +204,43 @@ def test_chat_route_passes_briefing_context_to_executive(
     assert "Gulf Coast Port Cyberattack" in captured["stream_chat"]["briefing_context"]
 
 
+def test_chat_turn_completes_when_the_vector_store_is_unusable(
+    temp_db: Path, patched_deps: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A corrupt or locked ChromaDB costs the answer its grounding, not the turn.
+
+    This one runs the real retrieve(): the route gathers it with the episodic,
+    briefing and peer-memory fetches, which all degrade to "" on failure.
+    """
+    people_store.upsert_person(full_name="Alex", is_principal=True)
+
+    captured: dict[str, Any] = {}
+    _install_capturing_executive(monkeypatch, captured)
+
+    from openexecutive.knowledge import store as store_mod
+    from openexecutive.memory import honcho_client as honcho_mod
+
+    def unopenable(self: Any, persist_directory: Any = "./chroma_db") -> None:
+        raise RuntimeError("ChromaDB panicked opening ./chroma_db")
+
+    monkeypatch.setattr(store_mod.ChromaDBStore, "__init__", unopenable)
+
+    async def fake_prefetch(*_a: Any, **_kw: Any) -> str:
+        return ""
+
+    monkeypatch.setattr(honcho_mod, "prefetch", fake_prefetch)
+
+    app = FastAPI()
+    app.include_router(chat_route.router)
+    client = TestClient(app)
+
+    resp = client.post("/chat", json={"message": "what is our pricing strategy"})
+
+    assert resp.status_code == 200
+    assert "stream_chat" in captured
+    assert captured["stream_chat"]["retrieved_context"] == ""
+
+
 def test_chat_committee_route_passes_peer_memory_context(
     temp_db: Path, patched_deps: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

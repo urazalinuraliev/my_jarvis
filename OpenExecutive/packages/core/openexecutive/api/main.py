@@ -157,8 +157,10 @@ def _open_knowledge_store(path: Path) -> ChromaDBStore | None:
     starts without a warm store. ``app.state.store`` must then stay *unset*
     (not None): the routes' ``_get_store`` helpers build their own store only
     when the attribute is absent, and retrieval opens one per call, so RAG
-    comes back once the problem clears. Until then retrieval — and the chat
-    turns that use it — fail; the rest of the API stays up.
+    comes back once the problem clears. Until then chat turns still answer,
+    but without retrieved knowledge and without the skill tools; ``/health``
+    reports ``vector_store: "unavailable"`` while the store won't open, and
+    each turn leaves a ``knowledge_retrieval`` audit row marked failed.
     """
     from openexecutive.knowledge.store import ChromaDBStore
 
@@ -166,9 +168,10 @@ def _open_knowledge_store(path: Path) -> ChromaDBStore | None:
         return ChromaDBStore(persist_directory=path)
     except Exception:
         logging.getLogger("openexecutive").exception(
-            "ChromaDB store unavailable at %s — the API keeps running, but "
-            "knowledge retrieval (and so chat turns that use it) will fail until "
-            "the store can be opened",
+            "ChromaDB store unavailable at %s — the API keeps running and chat "
+            "turns still answer, but without retrieved knowledge and without the "
+            "skill tools, until the store can be opened (/health reports it as "
+            "vector_store=unavailable)",
             path,
         )
         return None

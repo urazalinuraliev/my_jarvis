@@ -604,8 +604,29 @@ knowledge:
     stores from worker threads). The lifespan leaves app.state.store UNSET
     on failure (routes' _get_store build their own store only when the
     attribute is absent) and logs, without discarding the store, if seeding
-    fails — panics included. Known gap: until the store opens, retrieve()
-    raises and so do chat turns that use it (the API itself stays up).
+    fails — panics included. Until the store opens, the turn degrades
+    instead of failing: retrieve()/retrieve_failures() are wrapped in
+    _degrades_to_no_context (Exception or is_rust_panic → log, emit the
+    knowledge_retrieval audit row with summary "retrieve(*) → failed
+    (<ExcType>)" + details.error — which the /audit list and the flow-chart
+    node label both read — then return ""; anything else, e.g.
+    CancelledError, re-raised), and the skill / MCP tool batches gather
+    with return_exceptions and run the results through
+    executive._tool_results_or_errors, which hands the model
+    {"error": "<tool> failed: <ExcType>", "retry": "no ..."} for the one
+    tool that broke — the batch includes side-effecting tools, so the
+    model must not repeat an action that may already have landed; the
+    exception's message is never passed on (it can carry store paths).
+    So an unusable store costs answers their grounding and those tools,
+    not the conversation. Visible in three places: the startup log
+    (api.main._open_knowledge_store), /health's vector_store field
+    ("ok" | "unavailable"), and the audit row. Limits: /health probes
+    open+count, never query (embedding on an unauthenticated liveness
+    endpoint), so a segment that only panics on query still reads "ok"
+    there and shows up in the audit rows instead; the chat debug panel
+    still reports "0 chunks"; the MCP search_knowledge tool returns ""
+    rather than an error; and the RAG ablation harness reads a broken
+    store as "RAG did not help" instead of skipping the scenario.
 
 memory:
   episodic_db: ./episodic_memory.db

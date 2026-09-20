@@ -98,3 +98,20 @@ def test_sdk_error_returns_error(monkeypatch: pytest.MonkeyPatch) -> None:
     assert body["status"] == "error"
     assert body["error_type"] == "RuntimeError"
     assert "nope" in body["error_msg"]
+
+
+def test_health_reports_an_unopenable_vector_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Chat turns now answer without a store, so /health is where it shows."""
+    from typing import Any
+
+    from openexecutive.knowledge import store as store_mod
+
+    def unopenable(self: Any, persist_directory: Any = "./chroma_db") -> None:
+        raise RuntimeError("file is not a database")
+
+    monkeypatch.setattr(store_mod.ChromaDBStore, "__init__", unopenable)
+
+    body = _app().get("/health").json()
+
+    assert body["vector_store"] == "unavailable"
+    assert body["builtin_knowledge_chunks"] == 0
